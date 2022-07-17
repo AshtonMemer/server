@@ -29,7 +29,7 @@ export default class HTTPServer {
     private static onRequest(req: IncomingMessage, res: ServerResponse) {
         //if the user is connecting to the onion URL
         //other hosts are managed by nginx
-        if(req.headers.host === "ttqp5vp3ylxrhpnfkehpzsslabaa7qxdur255jxgwmiisshv2wdntkid.onion" || !!true) {
+        if(req.headers.host === "ttqp5vp3ylxrhpnfkehpzsslabaa7qxdur255jxgwmiisshv2wdntkid.onion") {
             return handleTorRequest(req, res);
         }
         
