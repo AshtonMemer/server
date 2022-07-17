@@ -3,8 +3,6 @@ import Config from "../Config";
 import {randomBytes} from "crypto";
 import Email from "../entity/Email";
 
-const random_name = require("node-random-name");
-
 export default class EmailStorage {
     
     private constructor() {}
@@ -21,14 +19,12 @@ export default class EmailStorage {
         
         const domain = this.getRandomDomain();
         
-        const name = random_name({
-            random: Math.random,
-            first: true,
-        });
+        //generate 5 random base36 characters
+        const first = randomBytes(2).toString("hex");
         
         const last = Math.floor(Date.now() / 1000).toString(10).substring(3);
         
-        const address_full = `${name}-${last}@${domain}`.toLowerCase();
+        const address_full = `${first}${last}@${domain}`.toLowerCase();
         
         const inbox = new Inbox(
             address_full,
