@@ -1,0 +1,25 @@
+{
+  "name": "temp-receiver",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "mailparser": "^3.5.0",
+    "node-random-name": "^1.0.1",
+    "redis": "^4.2.0",
+    "smtp-server": "^3.11.0",
+    "tslib": "^2.4.0"
+  },
+  "devDependencies": {
+    "@types/mailparser": "^3.4.0",
+    "@types/node": "^18.0.3",
+    "@types/redis": "^4.0.11",
+    "@types/smtp-server": "^3.5.7"
+  }
+}
