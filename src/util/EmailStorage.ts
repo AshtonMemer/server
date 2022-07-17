@@ -28,7 +28,7 @@ export default class EmailStorage {
         
         const last = Math.floor(Date.now() / 1000).toString(10).substring(3);
         
-        const address_full = `${name}-${last}@${domain}`;
+        const address_full = `${name}-${last}@${domain}`.toLowerCase();
         
         const inbox = new Inbox(
             address_full,
