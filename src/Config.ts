@@ -1,3 +1,4 @@
+import {readFileSync} from "fs";
 
 export default class Config {
     
@@ -11,10 +12,12 @@ export default class Config {
     public static HTTP_PORT: 80 | 8443 = 8443;
     
     //what the email domains can be.
-    public static EMAIL_DOMAINS = [
-        "magicaljellyfish.com",
-        "theeyeoftruth.com",
-        "cringemonster.com",
-    ];
+    public static EMAIL_DOMAINS: string[] = JSON.parse(readFileSync("domains.json").toString()).domains;
     
 }
+
+//every hour, update the list of email domains from domains.json.
+setInterval(() => {
+    const domains = readFileSync("domains.json");
+    Config.EMAIL_DOMAINS = JSON.parse(domains.toString()).domains;
+}, 3600000);
