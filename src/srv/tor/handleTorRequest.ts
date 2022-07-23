@@ -11,7 +11,7 @@ export default function(req: IncomingMessage, res: ServerResponse): any {
     if(!req.url || !req.url.startsWith("/token/")) {
         const address = EmailStorage.generateAddress();
         res.writeHead(302, {
-            "Location": `ttqp5vp3ylxrhpnfkehpzsslabaa7qxdur255jxgwmiisshv2wdntkid.onion/token/${address.token}/email/${address.address}`,
+            "Location": `http://ttqp5vp3ylxrhpnfkehpzsslabaa7qxdur255jxgwmiisshv2wdntkid.onion/token/${address.token}/email/${address.address}`,
         });
         res.end();
         return;
