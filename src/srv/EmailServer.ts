@@ -33,6 +33,11 @@ export default class EmailServer {
             
         });
         
+        this.server.on("error", (e) => {
+            console.error("Error in EmailServer");
+            console.error(e);
+        })
+        
         //listen
         this.server.listen(port, () => {
             console.log(`Email server listening on port ${port}`);
