@@ -15,9 +15,7 @@ export default class EmailStorage {
      * Generate a new email address.
      * @returns {Inbox} the inbox.
      */
-    public static generateAddress(): Inbox {
-        
-        const domain = this.getRandomDomain();
+    public static generateAddress(domain: string = this.getRandomDomain()): Inbox {
         
         //generate 5 random base36 characters
         const first = randomBytes(2).toString("hex");
@@ -63,9 +61,18 @@ export default class EmailStorage {
      * @returns {string} the domain.
      * @private
      */
-    private static getRandomDomain(): string {
+    public static getRandomDomain(): string {
         //get a random domain from the Config.EMAIL_DOMAINS array
         return Config.EMAIL_DOMAINS[Math.floor(Math.random() * Config.EMAIL_DOMAINS.length)] || "theeyeoftruth.com";
+    }
+    
+    /**
+     * Get a random rush email domain.
+     * @returns {string} the domain.
+     * @private
+     */
+    public static getRandomRushDomain(): string {
+        return Config.RUSH_DOMAINS[Math.floor(Math.random() * Config.RUSH_DOMAINS.length)] || "orangemail.shop";
     }
     
     /**

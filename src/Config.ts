@@ -14,6 +14,8 @@ export default class Config {
     //what the email domains can be.
     public static EMAIL_DOMAINS: string[] = JSON.parse(readFileSync("domains.json").toString()).domains;
     
+    public static RUSH_DOMAINS: string[] = JSON.parse(readFileSync("domains.json").toString()).rush;
+    
 }
 
 //every hour, update the list of email domains from domains.json.

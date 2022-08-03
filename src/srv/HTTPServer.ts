@@ -49,6 +49,17 @@ export default class HTTPServer {
                 address: address.address,
                 token: address.token,
             }));
+        } else if(req.url === "/generate/rush") {
+            const address = EmailStorage.generateAddress(EmailStorage.getRandomRushDomain());
+            
+            res.writeHead(201, {
+                "Content-Type": "application/json",
+            });
+            
+            res.end(JSON.stringify({
+                address: address.address,
+                token: address.token,
+            }));
         } else if(req.url.startsWith("/auth/")) {
             const token = req.url.substring("/auth/".length);
             const emails = EmailStorage.getInbox(token);
