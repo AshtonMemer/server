@@ -22,4 +22,5 @@ export default class Config {
 setInterval(() => {
     const domains = readFileSync("domains.json");
     Config.EMAIL_DOMAINS = JSON.parse(domains.toString()).domains;
+    Config.RUSH_DOMAINS = JSON.parse(domains.toString()).rush;
 }, 3600000);
