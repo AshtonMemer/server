@@ -148,7 +148,7 @@ export default class EmailStorage {
      * Get the amount of connected people (or active inboxes)
      */
     public static getConnected() {
-        return EmailStorage.inboxes.length;
+        return EmailStorage.inboxes.length + EmailStorage.customs.size;
     }
     
     public static async getCustomInbox(token: string, domain: string): Promise<Email[]> {
