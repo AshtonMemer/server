@@ -1,17 +1,15 @@
 {
   "name": "temp-receiver",
   "version": "1.0.0",
-  "description": "",
-  "main": "index.js",
-  "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
-  },
+  "description": "TempMail Server",
+  "main": "dist/TempMail.js",
   "keywords": [],
-  "author": "",
-  "license": "ISC",
+  "author": "Alexander Epolite",
+  "license": "All rights reserved",
   "dependencies": {
     "mailparser": "^3.5.0",
     "node-random-name": "^1.0.1",
+    "nodemailer": "^6.7.8",
     "redis": "^4.2.0",
     "smtp-server": "^3.11.0",
     "tslib": "^2.4.0"

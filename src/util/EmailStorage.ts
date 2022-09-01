@@ -1,13 +1,15 @@
 import Inbox from "../entity/Inbox";
 import Config from "../Config";
-import {randomBytes} from "crypto";
+import {createHash, randomBytes} from "crypto";
 import Email from "../entity/Email";
+import * as dns from "dns";
 
 export default class EmailStorage {
     
     private constructor() {}
     
     private static inboxes: Inbox[] = [];
+    private static customs: Map<string, Email[]> = new Map();
     
     private static last_access_time = new Map<string, number>();
     
@@ -35,6 +37,21 @@ export default class EmailStorage {
         EmailStorage.inboxes.push(inbox);
         
         return inbox;
+    }
+    
+    /**
+     * Check if the storage has an email address.
+     * @param address {string} the address.
+     * @returns {boolean} true if the address exists, false otherwise.
+     */
+    public static hasEmail(address: string): boolean {
+        for(const n of EmailStorage.inboxes) {
+            if(n.address === address) {
+                return true;
+            }
+        }
+        
+        return false;
     }
     
     /**
@@ -86,6 +103,26 @@ export default class EmailStorage {
                 return;
             }
         }
+        
+        //if the email is not for an inbox, add it to the customs map.
+        const domain = email.to.split("@")[1] as string;
+        
+        //filter out expired emails
+        if(Config.EMAIL_DOMAINS.includes(domain)) {
+            return;
+        } else if(Config.RUSH_DOMAINS.includes(domain)) {
+            return;
+        }
+        
+        //the custom domain emails should be limited to 5 emails.
+        const emails = EmailStorage.customs.get(domain) || [];
+        if(emails.length >= 5) {
+            return;
+        }
+        
+        emails.push(email);
+        
+        EmailStorage.customs.set(domain, emails);
     }
     
     /**
@@ -112,6 +149,30 @@ export default class EmailStorage {
      */
     public static getConnected() {
         return EmailStorage.inboxes.length;
+    }
+    
+    public static async getCustomInbox(token: string, domain: string): Promise<Email[]> {
+        //verify the TXT record _tmpml.example.com should be the sha512 of the token
+        //if it is, return the emails.
+        //if not, return an empty array.
+        const res = await dns.promises.resolveTxt(`_tmpml.${domain}`);
+        if(res.length === 0) {
+            return [];
+        }
+        
+        // @ts-ignore
+        const txt = res[0][0];
+        
+        const sha512 = createHash("sha512").update(token).digest("hex");
+        
+        if(txt !== sha512) {
+            return [];
+        }
+        
+        const emails = EmailStorage.customs.get(domain) || [];
+        EmailStorage.customs.set(domain, []);
+        
+        return emails;
     }
 }
 
