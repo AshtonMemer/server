@@ -54,7 +54,7 @@ export default class HTTPServer {
             sendDiscordMessage(`New public domain: ${domain}`);
             res.writeHead(200);
             res.end("ok");
-        } else if(req.url.startsWith("/generate/") && req.url.length > "/generate/".length + 3) {
+        } else if(req.url.startsWith("/generate/") && req.url.length > "/generate/".length + 3 && req.url !== "/generate/rush") {
             const domain = req.url.substring(10);
             
             try {
