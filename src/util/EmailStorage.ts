@@ -19,6 +19,13 @@ export default class EmailStorage {
      */
     public static generateAddress(domain: string = this.getRandomDomain()): Inbox {
         
+        //if the domain does not exist
+        if(!Config.EMAIL_DOMAINS.includes(domain)) {
+            if(!Config.RUSH_DOMAINS.includes(domain)) {
+                throw new Error("Invalid domain");
+            }
+        }
+        
         //generate 5 random base36 characters
         const first = randomBytes(2).toString("hex");
         

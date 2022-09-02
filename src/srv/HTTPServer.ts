@@ -52,9 +52,30 @@ export default class HTTPServer {
             }
             
             sendDiscordMessage(`New public domain: ${domain}`);
-        }
-        
-        if(req.url === "/generate") {
+            res.writeHead(200);
+            res.end("ok");
+        } else if(req.url.startsWith("/generate/") && req.url.length > "/generate/".length + 3) {
+            const domain = req.url.substring(10);
+            
+            try {
+                const address = EmailStorage.generateAddress(domain);
+                
+                res.writeHead(201, {
+                    "Content-Type": "application/json",
+                });
+                
+                res.end(JSON.stringify({
+                    address: address.address,
+                    token: address.token,
+                }));
+            } catch(e: any) {
+                res.writeHead(400);
+                
+                return res.end(JSON.stringify({
+                    "error": "invalid domain",
+                }));
+            }
+        } else if(req.url === "/generate") {
             const address = EmailStorage.generateAddress();
             
             res.writeHead(201, {
