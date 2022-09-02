@@ -2,6 +2,7 @@ import {IncomingMessage, Server, ServerResponse} from "http";
 import handleTorRequest from "./tor/handleTorRequest";
 import EmailStorage from "../util/EmailStorage";
 import GetStats from "../db/GetStats";
+import sendDiscordMessage from "../util/sendDiscordMessage";
 
 export default class HTTPServer {
     
@@ -36,6 +37,21 @@ export default class HTTPServer {
         if(!req.url) {
             res.writeHead(400);
             return res.end("something broke idk");
+        }
+        
+        if(req.url.startsWith("/addpublic/")) {
+            const domain = req.url.substring(11);
+            if(!domain || domain.length === 0 || domain.length > 100) {
+                res.writeHead(400);
+                return res.end("no domain");
+            }
+            
+            if(!domain.match(/^(?!.*\.\.)[\w.\-]+(\.[a-zA-Z]{2,16})+(\/[\w.?%#&=\/\-]*)?$/)) {
+                res.writeHead(400);
+                return res.end("invalid domain");
+            }
+            
+            sendDiscordMessage(`New public domain: ${domain}`);
         }
         
         if(req.url === "/generate") {
