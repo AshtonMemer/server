@@ -70,6 +70,12 @@ setInterval(async () => {
                 domains.splice(domains.indexOf(domain), 1);
                 await GetStats.instance.setRushDomains(domains);
             }
+            
+            if(await checkTXTRecord(domain)) {
+                sendDiscordMessage(`Rush domain ${domain} has an invalid TXT record.`);
+                domains.splice(domains.indexOf(domain), 1);
+                await GetStats.instance.setRushDomains(domains);
+            }
         }
         
         Config.EMAIL_DOMAINS = await GetStats.instance.getDomains();
@@ -79,7 +85,7 @@ setInterval(async () => {
     Config.checking_domains = [];
     
     lock = false;
-}, 3000);
+}, 30000);
 
 async function checkARecord(domain: string): Promise<boolean> {
     try {
@@ -113,5 +119,25 @@ async function checkMXRecord(domain: string): Promise<boolean> {
     } catch(e) {
         console.error(e);
         return false;
+    }
+}
+
+async function checkTXTRecord(domain: string): Promise<boolean> {
+    try {
+        const r = await dns.promises.resolveTxt(domain);
+        
+        const key = "_tmpml";
+        
+        //check to see if _tmpml.<domain> exists
+        for(const record of r) {
+            if(record[0] === key) {
+                return true;
+            }
+        }
+        
+        return false;
+    } catch(e) {
+        console.error(e);
+        return true;
     }
 }
