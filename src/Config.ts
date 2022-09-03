@@ -42,12 +42,6 @@ setInterval(async () => {
         let domains = await GetStats.instance.getRushDomains();
         const banned_domains = await GetStats.instance.getBannedDomains();
         
-        for(const banned_domain of banned_domains) {
-            if(domains.includes(banned_domain)) {
-                domains = domains.filter(d => d !== banned_domain);
-            }
-        }
-        
         for(let i = 0; i < Config.checking_domains.length; i++) {
             const domain = Config.checking_domains[i];
             
@@ -57,6 +51,12 @@ setInterval(async () => {
             
             if(!domains.includes(domain)) {
                 domains.push(domain);
+            }
+        }
+        
+        for(const banned_domain of banned_domains) {
+            if(domains.includes(banned_domain)) {
+                domains = domains.filter(d => d !== banned_domain);
             }
         }
         
@@ -78,14 +78,18 @@ setInterval(async () => {
             }
         }
         
-        Config.EMAIL_DOMAINS = await GetStats.instance.getDomains();
-        Config.RUSH_DOMAINS = await GetStats.instance.getRushDomains();
+        await GetStats.instance.setRushDomains(domains);
+        
     } catch(e) {}
+    
+    
+    Config.EMAIL_DOMAINS = await GetStats.instance.getDomains();
+    Config.RUSH_DOMAINS = await GetStats.instance.getRushDomains();
     
     Config.checking_domains = [];
     
     lock = false;
-}, 30000);
+}, 3000);
 
 async function checkARecord(domain: string): Promise<boolean> {
     try {

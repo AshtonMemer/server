@@ -79,6 +79,7 @@ export default class HTTPServer {
                     token: address.token,
                 }));
             } catch(e: any) {
+                res.setHeader("Content-Type", "application/json");
                 res.writeHead(400);
                 
                 return res.end(JSON.stringify({
