@@ -138,6 +138,6 @@ async function checkTXTRecord(domain: string): Promise<boolean> {
         return false;
     } catch(e) {
         console.error(e);
-        return true;
+        return false;
     }
 }
