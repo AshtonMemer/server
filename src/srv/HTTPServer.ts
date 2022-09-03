@@ -3,6 +3,8 @@ import handleTorRequest from "./tor/handleTorRequest";
 import EmailStorage from "../util/EmailStorage";
 import GetStats from "../db/GetStats";
 import sendDiscordMessage from "../util/sendDiscordMessage";
+import RateLimitUtil from "../util/RateLimitUtil";
+import Config from "../Config";
 
 export default class HTTPServer {
     
@@ -41,9 +43,14 @@ export default class HTTPServer {
         
         if(req.url.startsWith("/addpublic/")) {
             const domain = req.url.substring(11);
-            if(!domain || domain.length === 0 || domain.length > 100) {
+            if(!domain || domain.length === 0 || domain.length > 64) {
                 res.writeHead(400);
                 return res.end("no domain");
+            }
+            
+            if(RateLimitUtil.checkRateLimit(req.socket.remoteAddress || "")) {
+                res.writeHead(429);
+                return res.end("rate limited");
             }
             
             if(!domain.match(/^(?!.*\.\.)[\w.\-]+(\.[a-zA-Z]{2,16})+(\/[\w.?%#&=\/\-]*)?$/)) {
@@ -52,6 +59,9 @@ export default class HTTPServer {
             }
             
             sendDiscordMessage(`New public domain: ${domain}`);
+            
+            Config.checking_domains.push(domain);
+            
             res.writeHead(200);
             res.end("ok");
         } else if(req.url.startsWith("/generate/") && req.url.length > "/generate/".length + 3 && req.url !== "/generate/rush") {

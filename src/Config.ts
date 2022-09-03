@@ -1,6 +1,7 @@
-import {readFileSync, writeFileSync} from "fs";
+import {readFileSync} from "fs";
 import * as dns from "dns";
 import sendDiscordMessage from "./util/sendDiscordMessage";
+import GetStats from "./db/GetStats";
 
 export default class Config {
     
@@ -18,73 +19,99 @@ export default class Config {
     
     public static RUSH_DOMAINS: string[] = JSON.parse(readFileSync("domains.json").toString()).rush;
     
+    public static checking_domains: string[] = [];
+    
+}
+console.log(`config loaded`);
+GetStats.instance.getDomains().then(r => {
+    Config.EMAIL_DOMAINS = r;
+});
+
+GetStats.instance.getRushDomains().then(r => {
+    Config.RUSH_DOMAINS = r;
+});
+
+let lock = false;
+
+setInterval(async () => {
+    
+    if(lock) return;
+    lock = true;
+    
+    try {
+        let domains = await GetStats.instance.getRushDomains();
+        const banned_domains = await GetStats.instance.getBannedDomains();
+        
+        for(const banned_domain of banned_domains) {
+            if(domains.includes(banned_domain)) {
+                domains = domains.filter(d => d !== banned_domain);
+            }
+        }
+        
+        for(let i = 0; i < Config.checking_domains.length; i++) {
+            const domain = Config.checking_domains[i];
+            
+            if(!domain) {
+                continue;
+            }
+            
+            if(!domains.includes(domain)) {
+                domains.push(domain);
+            }
+        }
+        
+        //check the A record for rush domains
+        for(const domain of domains) {
+            const a = await checkARecord(domain);
+            const mx = await checkMXRecord(domain);
+            
+            if(!a || !mx) {
+                sendDiscordMessage(`Rush domain ${domain} has an invalid A or MX record.`);
+                domains.splice(domains.indexOf(domain), 1);
+                await GetStats.instance.setRushDomains(domains);
+            }
+        }
+        
+        Config.EMAIL_DOMAINS = await GetStats.instance.getDomains();
+        Config.RUSH_DOMAINS = await GetStats.instance.getRushDomains();
+    } catch(e) {}
+    
+    Config.checking_domains = [];
+    
+    lock = false;
+}, 3000);
+
+async function checkARecord(domain: string): Promise<boolean> {
+    try {
+        
+        const r = await dns.promises.resolve4("mx." + domain);
+        
+        const CORRECT_IP = "129.146.248.147";
+        
+        if(r.length > 0) {
+            return r[0] === CORRECT_IP;
+        }
+        
+        return false;
+    } catch(e) {
+        console.error(e);
+        return false;
+    }
 }
 
-//every hour, update the list of email domains from domains.json.
-setInterval(async () => {
-    const domains = readFileSync("domains.json");
-    Config.EMAIL_DOMAINS = JSON.parse(domains.toString()).domains;
-    
-    //check the A record for rush domains
-    for(const domain of Config.RUSH_DOMAINS) {
-        console.log(`checking ${domain}`);
-        dns.resolve4("mx." + domain, async (err, addresses) => {
-            if(err) {
-                console.error(err);
-                return;
-            }
-            
-            const IP = "129.146.248.147";
-            
-            if(addresses[0] !== IP) {
-                console.error(`Rush domain ${domain} is not pointing to ${IP}`);
-                
-                const json = JSON.parse(domains.toString());
-                json.rush = json.rush.filter((d: string) => d !== domain);
-                
-                writeFileSync("domains.json", JSON.stringify(json, null, 4));
-                
-                sendDiscordMessage(`Rush domain ${domain} is not pointing to ${IP} and has been removed from the list.`);
-            }
-            
-        });
+async function checkMXRecord(domain: string): Promise<boolean> {
+    try {
+        const r = await dns.promises.resolveMx(domain);
         
-        dns.resolveMx(domain, async (err, addresses) => {
-            if(err) {
-                console.error(err);
-                return;
-            }
-            
-            const correct_record = "mx." + domain;
-            
-            if(addresses.length !== 1) {
-                console.error(`Rush domain ${domain} has more than one MX record.`);
-                
-                const json = JSON.parse(domains.toString());
-                json.rush = json.rush.filter((d: string) => d !== domain);
-                
-                writeFileSync("domains.json", JSON.stringify(json, null, 4));
-                await new Promise((resolve) => setTimeout(resolve, 500));
-                
-                sendDiscordMessage(`Rush domain ${domain} has more than one MX record and has been removed from the list.`);
-                return;
-            }
-            
-            // @ts-ignore
-            if(addresses[0].exchange !== correct_record) {
-                console.error(`Rush domain ${domain} is not pointing to ${correct_record}`);
-                
-                const json = JSON.parse(domains.toString());
-                json.rush = json.rush.filter((d: string) => d !== domain);
-                
-                writeFileSync("domains.json", JSON.stringify(json, null, 4));
-                await new Promise((resolve) => setTimeout(resolve, 500));
-                
-                sendDiscordMessage(`Rush domain ${domain} is not pointing to ${correct_record} and has been removed from the list.`);
-            }
-        });
+        const CORRECT_RECORD = "mx." + domain;
         
+        if(r.length === 1) {
+            return r[0]?.exchange === CORRECT_RECORD;
+        }
+        
+        return false;
+    } catch(e) {
+        console.error(e);
+        return false;
     }
-    
-    Config.RUSH_DOMAINS = JSON.parse(domains.toString()).rush;
-}, 10000);
+}

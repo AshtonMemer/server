@@ -48,4 +48,39 @@ export default class GetStats {
         await this.client.SET("exp-account-" + hexEmail, JSON.stringify(account));
     }
     
+    public async getDomains(): Promise<string[]> {
+        const domains = await this.client.GET("exp-domains");
+        if(domains) {
+            return JSON.parse(domains);
+        } else {
+            return [];
+        }
+    }
+    
+    public async setDomains(domains: string[]): Promise<void> {
+        await this.client.SET("exp-domains", JSON.stringify(domains));
+    }
+    
+    public async getRushDomains(): Promise<string[]> {
+        const domains = await this.client.GET("exp-rush-domains");
+        if(domains) {
+            return JSON.parse(domains);
+        } else {
+            return [];
+        }
+    }
+    
+    public async setRushDomains(domains: string[]): Promise<void> {
+        await this.client.SET("exp-rush-domains", JSON.stringify(domains));
+    }
+    
+    public async getBannedDomains(): Promise<string[]> {
+        const domains = await this.client.GET("exp-banned-domains");
+        if(domains) {
+            return JSON.parse(domains);
+        } else {
+            return [];
+        }
+    }
+    
 }

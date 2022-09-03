@@ -23,12 +23,7 @@ export default function sendDiscordMessage(message: string) {
         }
     });
     
-    const req = https.request(webhook_url, options, (res) => {
-        res.on("data", () => {});
-        
-        res.on("end", () => {});
-        
-    });
+    const req = https.request(webhook_url, options, () => {});
     
     req.write(body);
     req.end();
