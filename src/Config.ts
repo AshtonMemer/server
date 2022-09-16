@@ -62,8 +62,8 @@ setInterval(async () => {
         
         //check the A record for rush domains
         for(const domain of domains) {
-            const a = await checkARecord(domain);
-            const mx = await checkMXRecord(domain);
+            const a = await checkARecord(domain, true);
+            const mx = await checkMXRecord(domain, true);
             
             if(!a || !mx) {
                 sendDiscordMessage(`Rush domain ${domain} has an invalid A or MX record.`);
@@ -89,27 +89,35 @@ setInterval(async () => {
     Config.checking_domains = [];
     
     lock = false;
-}, 3000);
+}, 30000);
 
-async function checkARecord(domain: string): Promise<boolean> {
+async function checkARecord(domain: string, try_again: boolean): Promise<boolean> {
     try {
         
         const r = await dns.promises.resolve4("mx." + domain);
         
-        const CORRECT_IP = "129.146.248.147";
+        const IP_RANGES = await GetStats.instance.getAllowedIPs();
         
         if(r.length > 0) {
-            return r[0] === CORRECT_IP;
+            const ip = r[0] as string;
+            
+            if(!IP_RANGES.includes(ip)) {
+                return false;
+            }
         }
         
-        return false;
+        return true;
     } catch(e) {
-        console.error(e);
-        return false;
+        if(try_again) {
+            return await checkARecord(domain, false);
+        } else {
+            console.error(e);
+            return false;
+        }
     }
 }
 
-async function checkMXRecord(domain: string): Promise<boolean> {
+async function checkMXRecord(domain: string, try_again: boolean): Promise<boolean> {
     try {
         const r = await dns.promises.resolveMx(domain);
         
@@ -121,8 +129,12 @@ async function checkMXRecord(domain: string): Promise<boolean> {
         
         return false;
     } catch(e) {
-        console.error(e);
-        return false;
+        if(try_again) {
+            return await checkMXRecord(domain, false);
+        } else {
+            console.error(e);
+            return false;
+        }
     }
 }
 

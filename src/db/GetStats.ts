@@ -83,4 +83,13 @@ export default class GetStats {
         }
     }
     
+    public async getAllowedIPs(): Promise<string[]> {
+        const ips = await this.client.GET("exp-allowed-ips");
+        if(ips) {
+            return JSON.parse(ips);
+        } else {
+            return [];
+        }
+    }
+    
 }
