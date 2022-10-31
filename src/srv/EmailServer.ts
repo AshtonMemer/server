@@ -1,5 +1,5 @@
 import Email from "../entity/Email";
-import {SMTPServer, SMTPServerDataStream, SMTPServerSession} from "smtp-server";
+import {SMTPServer, SMTPServerAddress, SMTPServerDataStream, SMTPServerSession} from "smtp-server";
 import {simpleParser} from "mailparser";
 import GetStats from "../db/GetStats";
 
@@ -30,7 +30,12 @@ export default class EmailServer {
                     console.error(e);
                 }
             },
-            
+            onRcptTo(address: SMTPServerAddress, _session: SMTPServerSession, callback: (err?: (Error | null)) => void) {
+                //if the address is not [four base36 chars][7 numbers]@[domain] then reject it
+                //ex: c4ab7174456@inactivemachine.com
+                if(!address.address.match(/^[a-z0-9]{4}[0-9]{7}@[a-z0-9.]+$/i)) return callback(new Error("Invalid address"));
+                callback();
+            },
         });
         
         this.server.on("error", (e) => {
