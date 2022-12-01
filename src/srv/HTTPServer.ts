@@ -1,5 +1,4 @@
 import {IncomingMessage, Server, ServerResponse} from "http";
-import handleTorRequest from "./tor/handleTorRequest";
 import EmailStorage from "../util/EmailStorage";
 import GetStats from "../db/GetStats";
 import sendDiscordMessage from "../util/sendDiscordMessage";
@@ -29,13 +28,7 @@ export default class HTTPServer {
      * @param res {ServerResponse}
      * @private
      */
-    private static async onRequest(req: IncomingMessage, res: ServerResponse) {
-        //if the user is connecting to the onion URL
-        //other hosts are managed by nginx
-        if(req.headers.host === "ttqp5vp3ylxrhpnfkehpzsslabaa7qxdur255jxgwmiisshv2wdntkid.onion") {
-            return handleTorRequest(req, res);
-        }
-        
+    private static async onRequest(req: IncomingMessage, res: ServerResponse): Promise<any> {
         if(!req.url) {
             res.writeHead(400);
             return res.end("something broke idk");
@@ -154,8 +147,8 @@ export default class HTTPServer {
                 email: emails,
             }));
         } else {
-            res.writeHead(302);
             res.setHeader("Location", "https://tempmail.lol/news/2022/05/17/how-to-use-the-tempmail-api/");
+            res.writeHead(302);
             
             return res.end(JSON.stringify({
                 error: "See https://tempmail.lol/news/2022/05/17/how-to-use-the-tempmail-api/ for more information on how to use the API.",
