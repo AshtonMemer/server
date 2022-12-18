@@ -1,0 +1,8 @@
+Below is a base-64 encoded list of banned words (for public domains) in a JSON format.
+Since I'm not sure of the rules on banned words, I'm just going to assume that I can't include them like this,
+so if you want to see them, decode it first.
+
+The program reads the string that starts with tilde, so if you want to add anything, make sure the new string starts with tilde.
+To decode the string, remove the tilde and do `Buffer.from("BASE_64_STRING_HERE", "base64").toString("ascii");`
+
+~eyJiYW5uZWRfd29yZHMiOlsibmlnZ2EiLCJuaWdnZXIiLCJmdWNrIiwiYml0Y2giLCJuaWdnaWUiLCJuaWdlciIsInJldGFyZCIsImZhZ2dvdCIsInNleCIsImdtYWlsIiwib3V0bG9vayIsInlhaG9vIiwieGJveCIsIm1pY3Jvc29mdCIsImdvb2dsZSIsInBlbmlzIl19

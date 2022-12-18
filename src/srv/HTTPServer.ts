@@ -4,6 +4,7 @@ import GetStats from "../db/GetStats";
 import sendDiscordMessage from "../util/sendDiscordMessage";
 import RateLimitUtil from "../util/RateLimitUtil";
 import Config from "../Config";
+import {readFileSync} from "fs";
 
 export default class HTTPServer {
     
@@ -52,6 +53,24 @@ export default class HTTPServer {
             }
             
             sendDiscordMessage(`New public domain: ${domain}`);
+            
+            try {
+                const banned_words_raw = readFileSync("./banned_words.txt").toString();
+                
+                const bw = JSON.parse(Buffer.from(banned_words_raw.split("~")[1] as string, "base64").toString());
+                
+                for(let i = 0; i < bw.banned_words.length; i++){
+                    const b: string = bw.banned_words[i];
+                    if(domain.includes(b)) {
+                        sendDiscordMessage(`Domain ${domain} violates verification.`);
+                        res.writeHead(400);
+                        return res.end("invalid domain");
+                    }
+                }
+            } catch(e) {
+                console.error(`Error reading banned words`);
+                console.error(e);
+            }
             
             Config.checking_domains.push(domain);
             
