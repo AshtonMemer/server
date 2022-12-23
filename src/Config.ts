@@ -65,18 +65,22 @@ setInterval(async () => {
             const a = await checkARecord(domain, true);
             const mx = await checkMXRecord(domain, true);
             
+            let remove = false;
+            
             if(!a) {
                 sendDiscordMessage(`Rush domain ${domain} has an invalid A record.`);
-                domains.splice(domains.indexOf(domain), 1);
-                await GetStats.instance.setRushDomains(domains);
-            } else if(!mx) {
+                remove = true;
+            }
+            
+            if(!mx) {
                 sendDiscordMessage(`Rush domain ${domain} has an invalid MX record.`);
-                domains.splice(domains.indexOf(domain), 1);
-                await GetStats.instance.setRushDomains(domains);
             }
             
             if(await checkTXTRecord(domain)) {
                 sendDiscordMessage(`Rush domain ${domain} has been removed by its owner.`);
+            }
+            
+            if(remove) {
                 domains.splice(domains.indexOf(domain), 1);
                 await GetStats.instance.setRushDomains(domains);
             }
