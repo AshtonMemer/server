@@ -65,22 +65,19 @@ setInterval(async () => {
             const a = await checkARecord(domain, true);
             const mx = await checkMXRecord(domain, true);
             
-            let remove = false;
-            
-            if(!a) {
-                sendDiscordMessage(`Rush domain ${domain} has an invalid A record.`);
-                remove = true;
-            }
-            
-            if(!mx) {
-                sendDiscordMessage(`Rush domain ${domain} has an invalid MX record.`);
+            if(!a || !mx) {
+                domains.splice(domains.indexOf(domain), 1);
+                await GetStats.instance.setRushDomains(domains);
+                
+                if(!a) {
+                    sendDiscordMessage(`Rush domain ${domain} has an invalid A record.`);
+                } else {
+                    sendDiscordMessage(`Rush domain ${domain} has an invalid MX record.`);
+                }
             }
             
             if(await checkTXTRecord(domain)) {
-                sendDiscordMessage(`Rush domain ${domain} has been removed by its owner.`);
-            }
-            
-            if(remove) {
+                sendDiscordMessage(`Rush domain ${domain} has an invalid TXT record.`);
                 domains.splice(domains.indexOf(domain), 1);
                 await GetStats.instance.setRushDomains(domains);
             }
@@ -88,9 +85,7 @@ setInterval(async () => {
         
         await GetStats.instance.setRushDomains(domains);
         
-    } catch(e) {
-        sendDiscordMessage("Error checking domain:\n```\n" + e + "\n```");
-    }
+    } catch(e) {}
     
     
     Config.EMAIL_DOMAINS = await GetStats.instance.getDomains();
