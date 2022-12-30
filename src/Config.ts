@@ -60,8 +60,18 @@ setInterval(async () => {
             }
         }
         
+        let dms: string[] = domains;
+        
         //check the A record for rush domains
-        for(const domain of domains) {
+        for(const domain of dms) {
+            
+            if(Config.EMAIL_DOMAINS.includes(domain)) {
+                domains.splice(domains.indexOf(domain), 1);
+                await GetStats.instance.setRushDomains(domains);
+                sendDiscordMessage(`Removed ${domain} from rush domains because it is already a normal domain.`);
+                continue;
+            }
+            
             const a = await checkARecord(domain, true);
             const mx = await checkMXRecord(domain, true);
             
