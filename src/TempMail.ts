@@ -1,4 +1,4 @@
-#!
+#!/usr/env node
 
 import EmailServer from "./srv/EmailServer";
 import Config from "./Config";
