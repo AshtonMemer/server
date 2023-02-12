@@ -69,8 +69,12 @@ export default class RateLimitUtil {
         }
         
         if(count) {
-            if(count >= 15) {
-                const ver = isIP(ip);
+            
+            const ver = isIP(ip);
+            
+            const max: 25 | 15 = ver === "4" ? 25 : 15;
+            
+            if(count >= max) {
                 if(!ver) {
                     console.log(`Invalid IP: ${ip}`);
                     this.BANNED_IPS.push(ip);
