@@ -14,7 +14,12 @@
 import * as https from "https";
 import {RequestOptions} from "https";
 
-import secrets from "../secrets.json";
+import {readFileSync} from "fs";
+const secrets = JSON.parse(readFileSync("./src/secrets.json").toString());
+
+if(!secrets.discord.webhook) {
+    console.error(`something wrong with the secrets file`);
+}
 
 export default function sendDiscordMessage(message: string) {
     
