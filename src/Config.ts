@@ -88,21 +88,30 @@ setInterval(async () => {
             const a = await checkARecord(domain, true);
             const mx = await checkMXRecord(domain, true);
             
+            let sendMessage = true;
+            
             if(!a || !mx) {
                 domains.splice(domains.indexOf(domain), 1);
                 await GetStats.instance.setRushDomains(domains);
                 
                 if(!a) {
-                    sendDiscordMessage(`Rush domain ${domain} has an invalid A record.`);
+                    console.log(`Rush domain ${domain} has an invalid A record.`);
+                    sendMessage = false;
                 } else {
-                    sendDiscordMessage(`Rush domain ${domain} has an invalid MX record.`);
+                    console.log(`Rush domain ${domain} has an invalid MX record.`);
+                    sendMessage = false;
                 }
             }
             
             if(await checkTXTRecord(domain)) {
-                sendDiscordMessage(`Rush domain ${domain} has an invalid TXT record.`);
+                console.log(`Rush domain ${domain} has an invalid TXT record.`);
+                sendMessage = false;
                 domains.splice(domains.indexOf(domain), 1);
                 await GetStats.instance.setRushDomains(domains);
+            }
+            
+            if(sendMessage) {
+                sendDiscordMessage(`New public domain: ${domain}`);
             }
         }
         

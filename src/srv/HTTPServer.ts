@@ -14,7 +14,6 @@
 import {IncomingMessage, Server, ServerResponse} from "http";
 import EmailStorage from "../util/EmailStorage";
 import GetStats from "../db/GetStats";
-import sendDiscordMessage from "../util/sendDiscordMessage";
 import RateLimitUtil from "../util/RateLimitUtil";
 import Config from "../Config";
 import {readFileSync} from "fs";
@@ -107,7 +106,6 @@ export default class HTTPServer {
                     }
                 }
                 
-                sendDiscordMessage(`New public domain: ${domain}`);
             } catch(e) {
                 console.error(`Error reading banned words`);
                 console.error(e);
