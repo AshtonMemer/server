@@ -23,27 +23,30 @@ if(!secrets.discord.webhook) {
 
 export default function sendDiscordMessage(message: string) {
     
-    const webhook_url = secrets.discord.webhook;
-    
-    const options: RequestOptions = {
-        port: 443,
-        host: "discord.com",
-        method: "POST",
-        headers: {
-            "Content-Type": "application/json",
-        },
-    };
-    
-    const body = JSON.stringify({
-        content: message,
-        allowed_mentions: {
-            parse: [],
-        }
-    });
-    
-    const req = https.request(webhook_url, options, () => {});
-    
-    req.write(body);
-    req.end();
+    try {
+        
+        const webhook_url = secrets.discord.webhook;
+        
+        const options: RequestOptions = {
+            port: 443,
+            host: "discord.com",
+            method: "POST",
+            headers: {
+                "Content-Type": "application/json",
+            },
+        };
+        
+        const body = JSON.stringify({
+            content: message,
+            allowed_mentions: {
+                parse: [],
+            }
+        });
+        
+        const req = https.request(webhook_url, options, () => {});
+        
+        req.write(body);
+        req.end();
+    } catch(ignored) {}
     
 }
