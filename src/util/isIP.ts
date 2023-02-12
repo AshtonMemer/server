@@ -11,26 +11,19 @@
  * OTHER DEALINGS IN THE SOFTWARE.
  */
 
-/**
- * Describes an inbox.
- */
-import Email from "./Email";
+import {isMatch} from "super-regex";
+import ipRegex from "ip-regex";
 
-export default class Inbox {
+/**
+ * Checks if the address is an IP address.
+ * 
+ * @param address {string} the address to check.
+ * @returns {"4" | "6" | false} the IP version, or false if it is not an IP address.
+ */
+export default function isIP(address: string): "4" | "6" | false {
+    const ip = isMatch(ipRegex({exact: true}), address.slice(0, 45), {timeout: 500});
     
-    /**
-     * Constructor.
-     *
-     * @param address {string} the address of the inbox
-     * @param token {string} the resume token.
-     * @param expiration {number} the expiration time of the inbox.
-     * @param emails {Email[]} the emails in this inbox.
-     */
-    public constructor(
-        public readonly address: string,
-        public readonly token: string,
-        public readonly expiration: number,
-        public emails: Email[],
-    ) {}
+    const v6 = isMatch(ipRegex.v6({exact: true}), address.slice(0, 45), {timeout: 500});
     
+    return ip ? (v6 ? "6" : "4") : false;
 }

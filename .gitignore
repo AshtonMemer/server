@@ -8,4 +8,4 @@ dist
 yarn.lock
 
 domains.json
-secrets.json
+src/secrets.json

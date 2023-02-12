@@ -1,5 +1,3 @@
-#!/usr/env node
-
 /*
  * COPYRIGHT (C) BananaCrumbs LLC
  * All Rights Reserved.
@@ -13,19 +11,9 @@
  * OTHER DEALINGS IN THE SOFTWARE.
  */
 
-import EmailServer from "./srv/EmailServer";
-import Config from "./Config";
-import EmailStorage from "./util/EmailStorage";
-import HTTPServer from "./srv/HTTPServer";
-import Email from "./entity/Email";
+export default function CIDRContains(a: string, b: string): boolean {
+    //TODO fix this or something
+    a; b;
+    return false;
+}
 
-new EmailServer(Config.MAIL_PORT, (email: Email[]) => {
-    //convert the `to` field to lowercase
-    for(const e of email) {
-        e.to = e.to.toLowerCase();
-    }
-    email.forEach(EmailStorage.addEmail);
-});
-
-const http_server = new HTTPServer(Config.HTTP_PORT);
-http_server.start();

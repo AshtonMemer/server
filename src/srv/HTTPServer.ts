@@ -1,3 +1,16 @@
+/*
+ * COPYRIGHT (C) BananaCrumbs LLC
+ * All Rights Reserved.
+ * 
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
+ * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
+ * MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.
+ * IN NO EVENT SHALL THE AUTHORS BE LIABLE FOR ANY CLAIM, DAMAGES, OR
+ * OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
+ * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
+ * OTHER DEALINGS IN THE SOFTWARE.
+ */
+
 import {IncomingMessage, Server, ServerResponse} from "http";
 import EmailStorage from "../util/EmailStorage";
 import GetStats from "../db/GetStats";
@@ -30,9 +43,36 @@ export default class HTTPServer {
      * @private
      */
     private static async onRequest(req: IncomingMessage, res: ServerResponse): Promise<any> {
+        
+        let ip = req.headers["CF-Connecting-IP".toLowerCase()];
+        
+        if(!ip) {
+            res.writeHead(200, {"Content-Type": "text/plain"});
+            return res.end("error");
+        }
+        
+        //array
+        if(typeof ip === "object") {
+            ip = ip[0];
+        }
+        
+        if(!ip) {
+            res.writeHead(200, {"Content-Type": "text/plain"});
+            return res.end("Not Found");
+        }
+        
+        // @ts-ignore
         if(!req.url) {
             res.writeHead(400);
             return res.end("something broke idk");
+        }
+        
+        if(req.url.includes("/generate")) {
+            const b = RateLimitUtil.checkRateLimitGenerate(ip);
+            if(b) {
+                res.writeHead(429);
+                return res.end("rate limited");
+            }
         }
         
         if(req.url.startsWith("/addpublic/")) {
@@ -42,7 +82,8 @@ export default class HTTPServer {
                 return res.end("no domain");
             }
             
-            if(RateLimitUtil.checkRateLimit(req.socket.remoteAddress || "")) {
+            // @ts-ignore
+            if(RateLimitUtil.checkRateLimitPubDomain(ip || "")) {
                 res.writeHead(429);
                 return res.end("rate limited");
             }
@@ -52,8 +93,6 @@ export default class HTTPServer {
                 return res.end("invalid domain");
             }
             
-            sendDiscordMessage(`New public domain: ${domain}`);
-            
             try {
                 const banned_words_raw = readFileSync("./banned_words.txt").toString();
                 
@@ -62,11 +101,13 @@ export default class HTTPServer {
                 for(let i = 0; i < bw.banned_words.length; i++){
                     const b: string = bw.banned_words[i];
                     if(domain.includes(b)) {
-                        sendDiscordMessage(`Domain ${domain} violates verification.`);
-                        res.writeHead(400);
-                        return res.end("invalid domain");
+                        console.log(`Domain ${domain} violates verification.`);
+                        res.writeHead(200);
+                        return res.end("ok");
                     }
                 }
+                
+                sendDiscordMessage(`New public domain: ${domain}`);
             } catch(e) {
                 console.error(`Error reading banned words`);
                 console.error(e);
