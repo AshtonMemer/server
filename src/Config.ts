@@ -110,7 +110,7 @@ setInterval(async () => {
                 await GetStats.instance.setRushDomains(domains);
             }
             
-            if(sendMessage) {
+            if(sendMessage && Config.checking_domains.includes(domain)) {
                 sendDiscordMessage(`New public domain: ${domain}`);
             }
         }
