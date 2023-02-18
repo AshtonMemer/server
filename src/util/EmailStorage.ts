@@ -109,7 +109,12 @@ export default class EmailStorage {
      * @private
      */
     public static getRandomRushDomain(): string {
-        return Config.RUSH_DOMAINS[Math.floor(Math.random() * Config.RUSH_DOMAINS.length)] || "orangemail.shop";
+        if(Config.RUSH_DOMAINS.length === 0) {
+            //if there are no rush domains, just return a random domain
+            return this.getRandomDomain();
+        }
+        
+        return Config.RUSH_DOMAINS[Math.floor(Math.random() * Config.RUSH_DOMAINS.length)] as string;
     }
     
     /**
