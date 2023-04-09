@@ -30,7 +30,7 @@ export default class EmailStorage {
      * Generate a new email address.
      * @returns {Inbox} the inbox.
      */
-    public static generateAddress(domain: string = this.getRandomDomain()): Inbox {
+    public static generateAddress(domain: string = this.getRandomDomain(), premium: boolean): Inbox {
         
         //if the domain does not exist
         if(!Config.EMAIL_DOMAINS.includes(domain)) {
@@ -50,8 +50,9 @@ export default class EmailStorage {
             address_full,
             randomBytes(64).toString("base64url"),
             //1 hour
-            Date.now() + (3600 * 1000),
+            (Date.now() + (3600 * 1000) * (premium ? 10 : 1)), //premium inboxes last 10 hours
             [],
+            premium
         );
         
         EmailStorage.inboxes.push(inbox);

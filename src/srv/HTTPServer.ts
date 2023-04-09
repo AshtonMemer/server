@@ -17,6 +17,8 @@ import GetStats from "../db/GetStats";
 import RateLimitUtil from "../util/RateLimitUtil";
 import Config from "../Config";
 import {readFileSync} from "fs";
+import BananaCrumbsUtils from "../util/BananaCrumbsUtils";
+import {generateToken} from "node-2fa";
 
 export default class HTTPServer {
     
@@ -45,6 +47,8 @@ export default class HTTPServer {
         
         let ip = req.headers["CF-Connecting-IP".toLowerCase()];
         
+        ip = "1.1.1.1";
+        
         if(!ip) {
             res.writeHead(200, {"Content-Type": "text/plain"});
             return res.end("error");
@@ -66,11 +70,49 @@ export default class HTTPServer {
             return res.end("something broke idk");
         }
         
+        let logged_in = false;
+        let account_id: string | undefined = undefined;
+        
+        //try logging into an account (if present)
+        try {
+            const bananacrumbs_id = req.headers["X-BananaCrumbs-ID".toLowerCase()] as string;
+            const mfa_token = req.headers["X-BananaCrumbs-MFA".toLowerCase()] as string;
+            
+            if(!mfa_token || !bananacrumbs_id) throw new Error();
+            
+            const tfa = generateToken(mfa_token);
+            
+            if(!tfa?.token) throw new Error();
+            
+            const login_status = await BananaCrumbsUtils.login(bananacrumbs_id, tfa?.token, mfa_token);
+            
+            if(login_status === "expired") {
+                res.writeHead(402);
+                res.end(JSON.stringify({
+                    "error": "expired account (please add more time)"
+                }));
+                return;
+            } else if(!login_status) {
+                res.writeHead(400);
+                res.end(JSON.stringify({
+                    "error": "Invalid account details (bad BananaCrumbs ID or 6-digit code)",
+                }));
+                return;
+            }
+            
+            logged_in = true;
+            account_id = bananacrumbs_id;
+        } catch(e) {
+            
+        }
+        
         if(req.url.includes("/generate")) {
-            const b = RateLimitUtil.checkRateLimitGenerate(ip);
+            const b = RateLimitUtil.checkRateLimitGenerate(ip, account_id);
             if(b) {
                 res.writeHead(429);
-                return res.end("rate limited");
+                return res.end(JSON.stringify({
+                    error: "rate limited" + (logged_in ? "" : " (free)"),
+                }));
             }
         }
         
@@ -119,7 +161,7 @@ export default class HTTPServer {
             const domain = req.url.substring(10);
             
             try {
-                const address = EmailStorage.generateAddress(domain);
+                const address = EmailStorage.generateAddress(domain, logged_in);
                 
                 res.writeHead(201, {
                     "Content-Type": "application/json",
@@ -138,7 +180,7 @@ export default class HTTPServer {
                 }));
             }
         } else if(req.url === "/generate") {
-            const address = EmailStorage.generateAddress();
+            const address = EmailStorage.generateAddress(undefined, logged_in);
             
             res.writeHead(201, {
                 "Content-Type": "application/json",
@@ -149,7 +191,7 @@ export default class HTTPServer {
                 token: address.token,
             }));
         } else if(req.url === "/generate/rush") {
-            const address = EmailStorage.generateAddress(EmailStorage.getRandomRushDomain());
+            const address = EmailStorage.generateAddress(EmailStorage.getRandomRushDomain(), logged_in);
             
             res.writeHead(201, {
                 "Content-Type": "application/json",
@@ -186,6 +228,16 @@ export default class HTTPServer {
                 }));
             });
         } else if(req.url.startsWith("/custom/")) {
+            
+            if(!logged_in) {
+                res.writeHead(402);
+                res.end(JSON.stringify({
+                    "error": "Not logged in or out of time"
+                }));
+                
+                return;
+            }
+            
             let token, domain;
             token = req.url.split("/")[2] as string;
             domain = req.url.split("/")[3] as string;

@@ -22,6 +22,8 @@ export default class GetStats {
     private constructor() {
         this.client.connect().then(() => {
             console.log("Connected to Redis");
+        }).catch(() => {
+            console.error(`could not connect to redis!`);
         });
     }
     

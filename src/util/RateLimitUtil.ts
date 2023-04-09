@@ -22,10 +22,12 @@ export default class RateLimitUtil {
     
     public static readonly RATE_LIMITS_GENERATE: Map<string, number> = new Map();
     
+    public static readonly RATE_LIMITS_REGISTERED: Map<string, number> = new Map();
+    
     public static readonly BANNED_IPS: string[] = [];
     
-    public static readonly STRICTNESS_IPV4 = 30; //max 32, low = more strict
-    public static readonly STRICTNESS_IPV6 = 115; //max 128, low = more strict
+    public static readonly STRICTNESS_IPV4 = 29; //max 32, low = more strict
+    public static readonly STRICTNESS_IPV6 = 113; //max 128, low = more strict
     
     public static checkRateLimitPubDomain(ip: string): boolean {
         const last_access = RateLimitUtil.RATE_LIMITS_PUBDOMAIN.get(ip);
@@ -41,7 +43,23 @@ export default class RateLimitUtil {
         return false;
     }
     
-    public static checkRateLimitGenerate(ip: string): boolean {
+    /**
+     * Check the /generate endpoint ratelimit
+     * @param ip {string} the IP address of the user
+     * @param account {string | undefined} the BananaCrumbs Account ID of the user, or undefined if anonymous.
+     */
+    public static checkRateLimitGenerate(ip: string, account: string | undefined): boolean {
+        
+        //if the account is not null, assume that it is correct and has time
+        if(account !== undefined) {
+            let acc_rl = this.RATE_LIMITS_REGISTERED.get(account) || 0;
+            
+            this.RATE_LIMITS_REGISTERED.set(account, (acc_rl) + 1);
+            console.log(`ok ${acc_rl}`)
+            if(acc_rl > 500) return true;
+            return false;
+        }
+        
         //The IP is allowed to generate up to 30 inboxes every 5 minutes
         //Instead of having the value in the map be last access, it is the number of times the IP has accessed
         //the generate endpoint in the last 5 minutes.
@@ -54,14 +72,12 @@ export default class RateLimitUtil {
             
             if(isIP(value) === "4") {
                 if(contains(`${value}/${this.STRICTNESS_IPV4}`, ip)) {
-                    console.log("yes");
                     return true;
                 }
             }
             
             if(isIP(value) === "6") {
                 if(contains(`${value}/${this.STRICTNESS_IPV6}`, ip)) {
-                    console.log("yes");
                     return true;
                 }
             }
@@ -105,4 +121,5 @@ export default class RateLimitUtil {
 setInterval(() => {
     RateLimitUtil.RATE_LIMITS_PUBDOMAIN.clear();
     RateLimitUtil.RATE_LIMITS_GENERATE.clear();
+    RateLimitUtil.RATE_LIMITS_REGISTERED.clear();
 }, 1000 * 60 * 5); //Clear the rate limits every 5 minutes.
