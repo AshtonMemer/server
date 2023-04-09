@@ -47,8 +47,6 @@ export default class HTTPServer {
         
         let ip = req.headers["CF-Connecting-IP".toLowerCase()];
         
-        ip = "1.1.1.1";
-        
         if(!ip) {
             res.writeHead(200, {"Content-Type": "text/plain"});
             return res.end("error");
