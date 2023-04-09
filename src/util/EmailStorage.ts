@@ -30,7 +30,11 @@ export default class EmailStorage {
      * Generate a new email address.
      * @returns {Inbox} the inbox.
      */
-    public static generateAddress(domain: string = this.getRandomDomain(), premium: boolean): Inbox {
+    public static generateAddress(domain: string | undefined, premium: boolean): Inbox {
+        
+        if(!domain) {
+            domain = this.getRandomDomain();
+        }
         
         //if the domain does not exist
         if(!Config.EMAIL_DOMAINS.includes(domain)) {
