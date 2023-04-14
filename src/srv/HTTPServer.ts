@@ -73,8 +73,20 @@ export default class HTTPServer {
         
         //try logging into an account (if present)
         try {
-            const bananacrumbs_id = req.headers["X-BananaCrumbs-ID".toLowerCase()] as string;
-            const mfa_token = req.headers["X-BananaCrumbs-MFA".toLowerCase()] as string;
+            let bananacrumbs_id = req.headers["X-BananaCrumbs-ID".toLowerCase()] as string;
+            let mfa_token = req.headers["X-BananaCrumbs-MFA".toLowerCase()] as string;
+            
+            if(!bananacrumbs_id || !mfa_token) {
+                if(req.headers["authorization"]) {
+                    const auth = req.headers["authorization"];
+                    if(!auth || !auth.includes(",")) {
+                        throw new Error();
+                    } else {
+                        bananacrumbs_id = auth.split(",")[0] as string;
+                        mfa_token = auth.split(",")[1] as string;
+                    }
+                }
+            }
             
             if(!mfa_token || !bananacrumbs_id) throw new Error();
             
