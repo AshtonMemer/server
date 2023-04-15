@@ -144,9 +144,9 @@ export default class EmailStorage {
             return;
         }
         
-        //the custom domain emails should be limited to 5 emails.
+        //the custom domain emails should be limited to 25 emails.
         const emails = EmailStorage.customs.get(domain) || [];
-        if(emails.length >= 5) {
+        if(emails.length >= 25) {
             return;
         }
         
