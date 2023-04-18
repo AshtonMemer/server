@@ -109,11 +109,11 @@ export default class EmailServer {
                         "Content-Type": "application/json",
                     },
                     body: JSON.stringify({
-                        "content": null,
+                        "content": "null",
                         "embeds": [
                             {
                                 "title": "Webmaster Email",
-                                "description": parsed.text?.substring(0, 4000),
+                                "description": (parsed.html ? parsed.html : parsed.text)?.substring(0, 4000),
                                 "color": null
                             }
                         ],
