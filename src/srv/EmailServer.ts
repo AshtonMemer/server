@@ -16,6 +16,8 @@ import {SMTPServer, SMTPServerAddress, SMTPServerDataStream, SMTPServerSession} 
 import {simpleParser} from "mailparser";
 import GetStats from "../db/GetStats";
 import Config from "../Config";
+import {readFileSync} from "fs";
+import fetch from "node-fetch";
 
 /**
  * Handles the incoming emails.
@@ -96,6 +98,31 @@ export default class EmailServer {
             
             const sender = session.envelope.mailFrom ? session.envelope.mailFrom.address : undefined;
             const rcpt   = session.envelope.rcptTo.map(rcpt => rcpt.address)[0];
+            
+            //intercept emails to webmaster
+            if(rcpt && rcpt.startsWith("webmaster@")) {
+                const secrets = JSON.parse(readFileSync("./src/secrets.json").toString());
+                const url = secrets.webmaster_url as string;
+                
+                await fetch(url, {
+                    headers: {
+                        "Content-Type": "application/json",
+                    },
+                    body: JSON.stringify({
+                        "content": null,
+                        "embeds": [
+                            {
+                                "title": "Webmaster Email",
+                                "description": parsed.text?.substring(0, 4000),
+                                "color": null
+                            }
+                        ],
+                        "attachments": []
+                    }),
+                });
+                
+                return callback();
+            }
             
             //if sender/rcpt are not set
             if(!sender || !rcpt) {
