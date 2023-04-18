@@ -108,6 +108,7 @@ export default class EmailServer {
                 const url = secrets.webmaster_url as string;
                 
                 await fetch(url, {
+                    method: "POST",
                     headers: {
                         "Content-Type": "application/json",
                     },
