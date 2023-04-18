@@ -51,6 +51,9 @@ export default class EmailServer {
                 //if the address is not [four base36 chars][7 numbers]@[domain] then reject it
                 //ex: c4ab7174456@inactivemachine.com
                 if(Config.EMAIL_DOMAINS.indexOf(address.address.split("@")[1] as string) !== -1) {
+                    //passthrough webmaster emails
+                    if(address.address.startsWith("webmaster")) return callback();
+                    
                     if(!address.address.match(/^[a-z0-9]{4}[0-9]{7}@[a-z0-9.]+$/i)) return callback(new Error("Invalid address"));
                 } else if(Config.RUSH_DOMAINS.indexOf(address.address.split("@")[1] as string) !== -1) {
                     if(!address.address.match(/^[a-z0-9]{4}[0-9]{7}@[a-z0-9.]+$/i)) return callback(new Error("Invalid address"));
