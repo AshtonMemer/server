@@ -22,7 +22,7 @@ export default class EmailStorage {
     private constructor() {}
     
     private static inboxes: Inbox[] = [];
-    private static customs: Map<string, Email[]> = new Map();
+    public static customs: Map<string, Email[]> = new Map();
     
     private static last_access_time = new Map<string, number>();
     
@@ -144,9 +144,9 @@ export default class EmailStorage {
             return;
         }
         
-        //the custom domain emails should be limited to 5 emails.
+        //the custom domain emails should be limited to 25 emails.
         const emails = EmailStorage.customs.get(domain) || [];
-        if(emails.length >= 5) {
+        if(emails.length >= 25) {
             return;
         }
         
@@ -206,4 +206,15 @@ export default class EmailStorage {
     }
 }
 
-setInterval(() => {EmailStorage.clearTimer()}, 10000);
+setInterval(() => {
+    EmailStorage.clearTimer()
+}, 10000);
+
+//every 10 seconds, remove all custom domain emails that are more than 10 hours old
+setInterval(() => {
+    const now = Date.now();
+    for(const [domain, emails] of EmailStorage.customs) {
+        const new_emails = emails.filter(e => e.date > now - (10 * 60 * 60 * 1000));
+        EmailStorage.customs.set(domain, new_emails);
+    }
+}, 10000);

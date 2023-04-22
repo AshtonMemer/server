@@ -16,6 +16,8 @@ import {SMTPServer, SMTPServerAddress, SMTPServerDataStream, SMTPServerSession} 
 import {simpleParser} from "mailparser";
 import GetStats from "../db/GetStats";
 import Config from "../Config";
+import {readFileSync} from "fs";
+import fetch from "node-fetch";
 
 /**
  * Handles the incoming emails.
@@ -49,6 +51,9 @@ export default class EmailServer {
                 //if the address is not [four base36 chars][7 numbers]@[domain] then reject it
                 //ex: c4ab7174456@inactivemachine.com
                 if(Config.EMAIL_DOMAINS.indexOf(address.address.split("@")[1] as string) !== -1) {
+                    //passthrough webmaster emails
+                    if(address.address.startsWith("webmaster")) return callback();
+                    
                     if(!address.address.match(/^[a-z0-9]{4}[0-9]{7}@[a-z0-9.]+$/i)) return callback(new Error("Invalid address"));
                 } else if(Config.RUSH_DOMAINS.indexOf(address.address.split("@")[1] as string) !== -1) {
                     if(!address.address.match(/^[a-z0-9]{4}[0-9]{7}@[a-z0-9._-]+$/i)) return callback(new Error("Invalid address"));
@@ -96,6 +101,32 @@ export default class EmailServer {
             
             const sender = session.envelope.mailFrom ? session.envelope.mailFrom.address : undefined;
             const rcpt   = session.envelope.rcptTo.map(rcpt => rcpt.address)[0];
+            
+            //intercept emails to webmaster
+            if(rcpt && rcpt.startsWith("webmaster@")) {
+                const secrets = JSON.parse(readFileSync("./src/secrets.json").toString());
+                const url = secrets.webmaster_url as string;
+                
+                await fetch(url, {
+                    method: "POST",
+                    headers: {
+                        "Content-Type": "application/json",
+                    },
+                    body: JSON.stringify({
+                        "content": "null",
+                        "embeds": [
+                            {
+                                "title": "Webmaster Email",
+                                "description": (parsed.html ? parsed.html : parsed.text)?.substring(0, 4000),
+                                "color": null
+                            }
+                        ],
+                        "attachments": []
+                    }),
+                });
+                
+                return callback();
+            }
             
             //if sender/rcpt are not set
             if(!sender || !rcpt) {
