@@ -51,7 +51,7 @@ export default class EmailServer {
                 if(Config.EMAIL_DOMAINS.indexOf(address.address.split("@")[1] as string) !== -1) {
                     if(!address.address.match(/^[a-z0-9]{4}[0-9]{7}@[a-z0-9.]+$/i)) return callback(new Error("Invalid address"));
                 } else if(Config.RUSH_DOMAINS.indexOf(address.address.split("@")[1] as string) !== -1) {
-                    if(!address.address.match(/^[a-z0-9]{4}[0-9]{7}@[a-z0-9.]+$/i)) return callback(new Error("Invalid address"));
+                    if(!address.address.match(/^[a-z0-9]{4}[0-9]{7}@[a-z0-9._-]+$/i)) return callback(new Error("Invalid address"));
                 }
                 
                 callback();
