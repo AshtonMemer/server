@@ -135,6 +135,7 @@ const checker_ip = secrets.checker_ip;
 const checker_port = secrets.checker_port;
 const checker_auth = secrets.checker_auth;
 
+// @ts-ignore
 async function checkIP(addr: string): Promise<boolean> {
     
     console.log(`Sending a confirmation message to ensure ${addr} is correct`);
@@ -155,24 +156,28 @@ async function checkIP(addr: string): Promise<boolean> {
 async function checkARecord(domain: string, try_again: boolean): Promise<boolean> {
     try {
         
-        let r: string[] = [];
+        const allowed_ips = await GetStats.instance.getAllowedIPs();
         
+        //check if mx.<domain> has an ipv4 or ipv6 address
         try {
-            r = await dns.promises.resolve4("mx." + domain);
+            const r = await dns.promises.resolve4(domain);
             
-        } catch(e) {}
-        
-        if(!r || r.length !== 1) {
+            if(r.length === 1) {
+                return allowed_ips.includes(r[0] as string);
+            }
             
-            r = await dns.promises.resolve6("mx." + domain);
+            return false;
+        } catch(e) {
+            //check for the new IPv6 range
+            const r = await dns.promises.resolve6(domain);
             
-            if(r.length !== 1)
-                return false;
-            
-            return checkIP(r[0] as string);
+            if(r.length === 1) {
+                return r[0]?.startsWith(secrets.ipv6_range) || false;
+            }
         }
         
-        return checkIP(r[0] as string)
+        return false;
+        
     } catch(e) {
         if(try_again) {
             return await checkARecord(domain, false);
