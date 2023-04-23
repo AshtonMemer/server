@@ -26,8 +26,8 @@ export default class RateLimitUtil {
     
     public static readonly BANNED_IPS: string[] = [];
     
-    public static readonly STRICTNESS_IPV4 = 29; //max 32, low = more strict
-    public static readonly STRICTNESS_IPV6 = 113; //max 128, low = more strict
+    public static readonly STRICTNESS_IPV4 = 30; //max 32, low = more strict
+    public static readonly STRICTNESS_IPV6 = 114; //max 128, low = more strict
     
     public static checkRateLimitPubDomain(ip: string): boolean {
         const last_access = RateLimitUtil.RATE_LIMITS_PUBDOMAIN.get(ip);
@@ -56,7 +56,7 @@ export default class RateLimitUtil {
             
             this.RATE_LIMITS_REGISTERED.set(account, (acc_rl) + 1);
             console.log(`ok ${acc_rl}`)
-            if(acc_rl > 500) return true;
+            if(acc_rl > 2000) return true;
             return false;
         }
         
@@ -88,7 +88,7 @@ export default class RateLimitUtil {
             
             const ver = isIP(ip);
             
-            const max: 25 | 15 = ver === "4" ? 25 : 15;
+            const max = 25;
             
             if(count >= max) {
                 if(!ver) {
