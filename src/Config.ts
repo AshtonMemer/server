@@ -137,12 +137,16 @@ const checker_auth = secrets.checker_auth;
 
 async function checkIP(addr: string): Promise<boolean> {
     
+    console.log(`Sending a confirmation message to ensure ${addr} is correct`);
+    
     const e = await fetch(`${checker_ip}:${checker_port}`, {
         headers: {
             "Authorization": checker_auth,
             "Cookie": addr
         },
     });
+    
+    console.log(`Confirmation server returned ${e.status}`);
     
     return e.ok;
     
