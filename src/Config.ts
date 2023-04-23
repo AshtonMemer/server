@@ -15,13 +15,14 @@ import {readFileSync} from "fs";
 import * as dns from "dns";
 import sendDiscordMessage from "./util/sendDiscordMessage";
 import GetStats from "./db/GetStats";
+import fetch from "node-fetch";
 
 export default class Config {
     
     private constructor() {}
     
     //the port to listen for incoming mail
-    public static MAIL_PORT: 25 | 2525 = 25;
+    public static MAIL_PORT: 25 | 2525 = 2525;
     
     //the port to run the HTTP server
     //8443 is left in for testing, use 80 for production (ssl is managed by nginx)
@@ -128,22 +129,46 @@ setInterval(async () => {
     lock = false;
 }, 30000);
 
+const secrets = JSON.parse(readFileSync("./src/secrets.json").toString());
+
+const checker_ip = secrets.checker_ip;
+const checker_port = secrets.checker_port;
+const checker_auth = secrets.checker_auth;
+
+async function checkIP(addr: string): Promise<boolean> {
+    
+    const e = await fetch(`${checker_ip}:${checker_port}`, {
+        headers: {
+            "Authorization": checker_auth,
+            "Cookie": addr
+        },
+    });
+    
+    return e.ok;
+    
+}
+
 async function checkARecord(domain: string, try_again: boolean): Promise<boolean> {
     try {
         
-        const r = await dns.promises.resolve4("mx." + domain);
+        let r: string[] = [];
         
-        const IP_RANGES = await GetStats.instance.getAllowedIPs();
-        
-        if(r.length > 0) {
-            const ip = r[0] as string;
+        try {
+            r = await dns.promises.resolve4("mx." + domain);
             
-            if(!IP_RANGES.includes(ip)) {
+        } catch(e) {}
+        
+        if(!r || r.length !== 1) {
+            
+            r = await dns.promises.resolve6("mx." + domain);
+            
+            if(r.length !== 1)
                 return false;
-            }
+            
+            return checkIP(r[0] as string);
         }
         
-        return true;
+        return checkIP(r[0] as string)
     } catch(e) {
         if(try_again) {
             return await checkARecord(domain, false);
