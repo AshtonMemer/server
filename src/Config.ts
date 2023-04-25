@@ -31,12 +31,17 @@ export default class Config {
     //what the email domains can be.
     public static EMAIL_DOMAINS: string[] = JSON.parse(readFileSync("domains.json").toString()).domains;
     
+    //now known as "community domains" (these are really stored in Redis)
     public static RUSH_DOMAINS: string[] = JSON.parse(readFileSync("domains.json").toString()).rush;
     
+    //community domains which are currently being checked.
     public static checking_domains: string[] = [];
     
 }
+
 console.log(`config loaded`);
+
+//load the normal/community domains into memory.
 GetStats.instance.getDomains().then(r => {
     Config.EMAIL_DOMAINS = r;
 });
@@ -45,6 +50,7 @@ GetStats.instance.getRushDomains().then(r => {
     Config.RUSH_DOMAINS = r;
 });
 
+//locks the IP checker from being run multiple times at once
 let lock = false;
 
 setInterval(async () => {
@@ -53,9 +59,12 @@ setInterval(async () => {
     lock = true;
     
     try {
+        
+        //get a list of the current community domains
         let domains = await GetStats.instance.getRushDomains();
         const banned_domains = await GetStats.instance.getBannedDomains();
         
+        //add all domains waiting to be added to the service.
         for(let i = 0; i < Config.checking_domains.length; i++) {
             const domain = Config.checking_domains[i];
             
@@ -68,6 +77,7 @@ setInterval(async () => {
             }
         }
         
+        //remove any banned domains
         for(const banned_domain of banned_domains) {
             if(domains.includes(banned_domain)) {
                 domains = domains.filter(d => d !== banned_domain);
@@ -76,9 +86,10 @@ setInterval(async () => {
         
         let dms: string[] = domains;
         
-        //check the A record for rush domains
+        //check the A record for community domains
         for(const domain of dms) {
             
+            //if the domain is a normal domain
             if(Config.EMAIL_DOMAINS.includes(domain)) {
                 domains.splice(domains.indexOf(domain), 1);
                 await GetStats.instance.setRushDomains(domains);
@@ -86,11 +97,13 @@ setInterval(async () => {
                 continue;
             }
             
+            //check the A and MX records of community domains.
             const a = await checkARecord(domain, true);
             const mx = await checkMXRecord(domain, true);
             
             let sendMessage = true;
             
+            //if the A or MX record is invalid, remove the domain.
             if(!a || !mx) {
                 domains.splice(domains.indexOf(domain), 1);
                 await GetStats.instance.setRushDomains(domains);
@@ -104,6 +117,7 @@ setInterval(async () => {
                 }
             }
             
+            //if the community domain has a _tmpml TXT record, remove it.
             if(await checkTXTRecord(domain)) {
                 console.log(`Rush domain ${domain} has an invalid TXT record.`);
                 sendMessage = false;
@@ -129,12 +143,17 @@ setInterval(async () => {
     lock = false;
 }, 30000);
 
+
+//to be used in future versions of TempMail
 const secrets = JSON.parse(readFileSync("./src/secrets.json").toString());
 
+
+//to be used in future versions of TempMail
 const checker_ip = secrets.checker_ip;
 const checker_port = secrets.checker_port;
 const checker_auth = secrets.checker_auth;
 
+//to be used in future versions of TempMail
 // @ts-ignore
 async function checkIP(addr: string): Promise<boolean> {
     
@@ -153,6 +172,18 @@ async function checkIP(addr: string): Promise<boolean> {
     
 }
 
+/**
+ * Check the A record of a community domain to ensure it is correct.
+ * 
+ * @deprecated Because there is a set amount of IP addresses that this method checks,
+ *             this method will be replaced soon.  Community domains in the future
+ *             will be added to the TempMail Nameserver (probably through a public
+ *             nameserver) to further avoid TempMail detection, and automatically
+ *             add new IP addresses as they are released.
+ * 
+ * @param domain {string} the domain to check.
+ * @param try_again {boolean} true to try again, false otherwise.
+ */
 async function checkARecord(domain: string, try_again: boolean): Promise<boolean> {
     try {
         
@@ -188,6 +219,17 @@ async function checkARecord(domain: string, try_again: boolean): Promise<boolean
     }
 }
 
+/**
+ * Check the MX record of a community domain.
+ * 
+ * This checks to see if "MX.DOMAIN.COM." is the mail server for "DOMAIN.COM.".
+ * 
+ * @deprecated This may be changed in the future to bypass tempmail detectors.
+ * 
+ * @param domain {string} The domain to check
+ * @param try_again {boolean} Whether or not to try again if the first attempt fails
+ * @returns {boolean} true if the MX record is correct, false if it is not or there is an error.
+ */
 async function checkMXRecord(domain: string, try_again: boolean): Promise<boolean> {
     try {
         const r = await dns.promises.resolveMx(domain);
@@ -209,6 +251,14 @@ async function checkMXRecord(domain: string, try_again: boolean): Promise<boolea
     }
 }
 
+/**
+ * Check the TXT record of a custom domain.
+ * 
+ * This will be used to make sure that community domains are not also custom domains.
+ * 
+ * @param domain {string} The domain to check
+ * @returns {Promise<boolean>} Whether or not the TXT record exists
+ */
 async function checkTXTRecord(domain: string): Promise<boolean> {
     try {
         const r = await dns.promises.resolveTxt(domain);
