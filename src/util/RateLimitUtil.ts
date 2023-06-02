@@ -24,7 +24,7 @@ export default class RateLimitUtil {
     
     public static readonly RATE_LIMITS_REGISTERED: Map<string, number> = new Map();
     
-    public static readonly BANNED_IPS: string[] = [];
+    public static BANNED_IPS: string[] = [];
     
     public static readonly STRICTNESS_IPV4 = 30; //max 32, low = more strict
     public static readonly STRICTNESS_IPV6 = 114; //max 128, low = more strict
