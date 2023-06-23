@@ -13,6 +13,7 @@
 
 import {contains} from "cidr-tools";
 import isIP from "./isIP";
+import {PremiumTier} from "../entity/PremiumTier";
 
 export default class RateLimitUtil {
     
@@ -24,7 +25,7 @@ export default class RateLimitUtil {
     
     public static readonly RATE_LIMITS_REGISTERED: Map<string, number> = new Map();
     
-    public static readonly BANNED_IPS: string[] = [];
+    public static BANNED_IPS: string[] = [];
     
     public static readonly STRICTNESS_IPV4 = 30; //max 32, low = more strict
     public static readonly STRICTNESS_IPV6 = 114; //max 128, low = more strict
@@ -47,17 +48,24 @@ export default class RateLimitUtil {
      * Check the /generate endpoint ratelimit
      * @param ip {string} the IP address of the user
      * @param account {string | undefined} the BananaCrumbs Account ID of the user, or undefined if anonymous.
+     * @param tier {PremiumTier} premium tier level
      */
-    public static checkRateLimitGenerate(ip: string, account: string | undefined): boolean {
+    public static checkRateLimitGenerate(ip: string, account: string | undefined, tier: PremiumTier): boolean {
         
         //if the account is not null, assume that it is correct and has time
         if(account !== undefined) {
             let acc_rl = this.RATE_LIMITS_REGISTERED.get(account) || 0;
             
             this.RATE_LIMITS_REGISTERED.set(account, (acc_rl) + 1);
-            console.log(`ok ${acc_rl}`)
-            if(acc_rl > 2000) return true;
-            return false;
+            console.log(`ok ${acc_rl}`);
+            
+            let max: 2000 | 50000;
+            
+            if(tier === PremiumTier.TEMPMAIL_PLUS) max = 2000;
+            if(tier === PremiumTier.TEMPMAIL_ULTRA) max = 50000;
+            else return false;
+            
+            return acc_rl > max;
         }
         
         //The IP is allowed to generate up to 30 inboxes every 5 minutes
@@ -122,4 +130,5 @@ setInterval(() => {
     RateLimitUtil.RATE_LIMITS_PUBDOMAIN.clear();
     RateLimitUtil.RATE_LIMITS_GENERATE.clear();
     RateLimitUtil.RATE_LIMITS_REGISTERED.clear();
+    RateLimitUtil.BANNED_IPS = [];
 }, 1000 * 60 * 5); //Clear the rate limits every 5 minutes.

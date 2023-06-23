@@ -15,6 +15,7 @@
  * Describes an inbox.
  */
 import Email from "./Email";
+import {PremiumTier} from "./PremiumTier";
 
 export default class Inbox {
     
@@ -26,13 +27,15 @@ export default class Inbox {
      * @param expiration {number} the expiration time of the inbox.
      * @param emails {Email[]} the emails in this inbox.
      * @param premium {boolean} true if this is a premium inbox, false otherwise
+     * @param creator {string} the BananaCrumbs ID that created this account or undefined
      */
     public constructor(
         public readonly address: string,
         public readonly token: string,
         public readonly expiration: number,
         public emails: Email[],
-        public readonly premium: boolean,
+        public readonly premium: PremiumTier,
+        public readonly creator: string | undefined,
     ) {}
     
 }

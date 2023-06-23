@@ -19,6 +19,7 @@ import Config from "../Config";
 import {readFileSync} from "fs";
 import BananaCrumbsUtils from "../util/BananaCrumbsUtils";
 import {generateToken} from "node-2fa";
+import {PremiumTier} from "../entity/PremiumTier";
 
 export default class HTTPServer {
     
@@ -68,7 +69,7 @@ export default class HTTPServer {
             return res.end("something broke idk");
         }
         
-        let logged_in = false;
+        let logged_in: PremiumTier = PremiumTier.NONE;
         let account_id: string | undefined = undefined;
         
         //try logging into an account (if present)
@@ -94,34 +95,32 @@ export default class HTTPServer {
             
             if(!tfa?.token) throw new Error();
             
-            const login_status = await BananaCrumbsUtils.login(bananacrumbs_id, tfa?.token, mfa_token);
+            const login_status = await BananaCrumbsUtils.login(bananacrumbs_id, tfa?.token);
             
-            if(login_status === "expired") {
+            if(login_status === "expired" || login_status === PremiumTier.NONE) {
                 res.writeHead(402);
                 res.end(JSON.stringify({
-                    "error": "expired account (please add more time)"
+                    "error": "expired account (please add more time)\nYou do not need an account to use the Free Tier.",
                 }));
                 return;
             } else if(!login_status) {
                 res.writeHead(400);
                 res.end(JSON.stringify({
-                    "error": "Invalid account details (bad BananaCrumbs ID or 6-digit code)",
+                    "error": "Invalid account details (bad BananaCrumbs ID or Token)",
                 }));
                 return;
             }
             
-            logged_in = true;
+            logged_in = login_status;
             account_id = bananacrumbs_id;
-        } catch(e) {
-            
-        }
+        } catch(e) {}
         
         if(req.url.includes("/generate")) {
-            const b = RateLimitUtil.checkRateLimitGenerate(ip, account_id);
+            const b = RateLimitUtil.checkRateLimitGenerate(ip, account_id, logged_in);
             if(b) {
                 res.writeHead(429);
                 return res.end(JSON.stringify({
-                    error: "rate limited" + (logged_in ? "" : " (free)"),
+                    error: `rate limited (${logged_in})`,
                 }));
             }
         }
@@ -171,7 +170,7 @@ export default class HTTPServer {
             const domain = req.url.substring(10);
             
             try {
-                const address = EmailStorage.generateAddress(domain, logged_in);
+                const address = EmailStorage.generateAddress(domain, logged_in, account_id);
                 
                 res.writeHead(201, {
                     "Content-Type": "application/json",
@@ -190,7 +189,7 @@ export default class HTTPServer {
                 }));
             }
         } else if(req.url === "/generate") {
-            const address = EmailStorage.generateAddress(undefined, logged_in);
+            const address = EmailStorage.generateAddress(undefined, logged_in, account_id);
             
             res.writeHead(201, {
                 "Content-Type": "application/json",
@@ -201,7 +200,7 @@ export default class HTTPServer {
                 token: address.token,
             }));
         } else if(req.url === "/generate/rush") {
-            const address = EmailStorage.generateAddress(EmailStorage.getRandomRushDomain(), logged_in);
+            const address = EmailStorage.generateAddress(EmailStorage.getRandomRushDomain(), logged_in, account_id);
             
             res.writeHead(201, {
                 "Content-Type": "application/json",
@@ -266,6 +265,52 @@ export default class HTTPServer {
             return res.end(JSON.stringify({
                 email: emails,
             }));
+        } else if(req.url.startsWith("/webhook/")) {
+            
+            if(!account_id) {
+                res.writeHead(401);
+                res.end(JSON.stringify({
+                    error: "You must be logged in to modify webhooks!",
+                }));
+                return;
+            }
+            
+            if(req.url.startsWith("/webhook/add/")) {
+                try {
+                    const id = await GetStats.instance.setIDWebhook(account_id, req.url.split("/")[3] as string);
+                    res.writeHead(200);
+                    return res.end(JSON.stringify({
+                        "success": true,
+                        "id": id,
+                    }));
+                } catch(e) {
+                    console.error(e);
+                    res.writeHead(500);
+                    return res.end(JSON.stringify({
+                        "success": false,
+                    }));
+                }
+            } else if(req.url.startsWith("/webhook/remove/")) {
+                try {
+                    await GetStats.instance.deleteIDWebhook(account_id);
+                    res.writeHead(200);
+                    return res.end(JSON.stringify({
+                        "success": true,
+                    }));
+                } catch(e) {
+                    console.error(e);
+                    res.writeHead(500);
+                    return res.end(JSON.stringify({
+                        "success": false,
+                    }));
+                }
+            } else {
+                res.writeHead(404);
+                return res.end(JSON.stringify({
+                    "error": "Invalid URL",
+                }));
+            }
+            
         } else {
             res.setHeader("Location", "https://tempmail.lol/news/2022/05/17/how-to-use-the-tempmail-api/");
             res.writeHead(302);

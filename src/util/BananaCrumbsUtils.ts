@@ -13,6 +13,7 @@
 
 import fetch from "node-fetch";
 import {readFileSync} from "fs";
+import {PremiumTier} from "../entity/PremiumTier";
 
 const secrets = JSON.parse(readFileSync("./src/secrets.json").toString());
 
@@ -41,29 +42,21 @@ export default class BananaCrumbsUtils {
      * 
      * @param id {string} the 24-number ID of the user.
      * @param mfa_code {string} the 6-number two-factor code.
-     * @param token {string} the 36-ish character MFA token.
      * @returns {Promise<boolean | "expired">}
      */
-    public static async login(id: string, mfa_code: string, token: string): Promise<boolean | "expired"> {
-        
-        //if the user has logged in recently, don't contact the master server
-        if(this.user_cache.has(id)) {
-            if(this.user_cache.get(id) === token) {
-                return true;
-            }
-        }
+    public static async login(id: string, mfa_code: string): Promise<PremiumTier | "expired"> {
         
         //some tests
         if(!/^[0-9]{24}$/.test(id)) {
-            return false;
+            return PremiumTier.NONE;
         }
         
         //my regex wasn't working for some reason
         if(mfa_code.length !== 6) {
-            return false;
+            return PremiumTier.NONE;
         }
         
-        if(isNaN(Number(mfa_code))) return false;
+        if(isNaN(Number(mfa_code))) return PremiumTier.NONE;
         
         const url = `https://passport.bananacrumbs.us/login?id=${id}&mfa=${mfa_code}&subcode=${this.subcode}`;
         
@@ -74,30 +67,37 @@ export default class BananaCrumbsUtils {
         
         try {
             if(!ft.ok) {
-                return false;
+                return PremiumTier.NONE;
             }
             
             const data = await ft.text();
             
             //3am programming
             if(data === "oopsie") {
-                return false;
+                return PremiumTier.NONE;
             }
             
             const json: any = JSON.parse(data);
             
-            if(json?.tempmail_plus_until < Date.now()) {
+            let plus: boolean;
+            let ultra: boolean;
+            
+            plus = json?.tempmail_plus_until > Date.now();
+            ultra = json?.tempmail_ultra_until > Date.now();
+            
+            if(!plus || !ultra) {
                 console.log(`expired!`)
                 return "expired";
             }
             
-            this.user_cache.set(id, token);
+            if(plus)
+                return PremiumTier.TEMPMAIL_PLUS;
+            else if(ultra)
+                return PremiumTier.TEMPMAIL_ULTRA;
             
-            return true;
-            
-            
+            return PremiumTier.NONE;
         } catch(e) {
-            return false;
+            return PremiumTier.NONE;
         }
     }
     

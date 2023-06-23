@@ -79,4 +79,16 @@ export default class GetStats {
         }
     }
     
+    public async setIDWebhook(bananacrumbs_id: string, webhook_url: string): Promise<void> {
+        await this.client.SET(`exp-webhook-${bananacrumbs_id}`, webhook_url);
+    }
+    
+    public async getIDWebhook(bananacrumbs_id: string): Promise<string | undefined> {
+        return await this.client.GET(`exp-webhook-${bananacrumbs_id}`) || undefined;
+    }
+    
+    public async deleteIDWebhook(bananacrumbs_id: string): Promise<void> {
+        await this.client.DEL(`exp-webhook-${bananacrumbs_id}`);
+    }
+    
 }

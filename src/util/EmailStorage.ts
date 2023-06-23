@@ -16,6 +16,9 @@ import Config from "../Config";
 import {createHash, randomBytes} from "crypto";
 import Email from "../entity/Email";
 import * as dns from "dns";
+import {PremiumTier} from "../entity/PremiumTier";
+import GetStats from "../db/GetStats";
+import webhookSender from "./webhookSender";
 
 export default class EmailStorage {
     
@@ -30,7 +33,7 @@ export default class EmailStorage {
      * Generate a new email address.
      * @returns {Inbox} the inbox.
      */
-    public static generateAddress(domain: string | undefined, premium: boolean): Inbox {
+    public static generateAddress(domain: string | undefined, premium: PremiumTier, account_id: string | undefined): Inbox {
         
         if(!domain) {
             domain = this.getRandomDomain();
@@ -50,13 +53,21 @@ export default class EmailStorage {
         
         const address_full = `${first}${last}@${domain}`.toLowerCase();
         
+        let expiration_multiplier = 1;
+        
+        if(premium === PremiumTier.TEMPMAIL_PLUS) {
+            expiration_multiplier = 10;
+        } else if(premium === PremiumTier.TEMPMAIL_ULTRA) {
+            expiration_multiplier = 30;
+        }
+        
         const inbox = new Inbox(
             address_full,
             randomBytes(64).toString("base64url"),
-            //1 hour
-            (Date.now() + (3600 * 1000) * (premium ? 10 : 1)), //premium inboxes last 10 hours
+            (Date.now() + (3600 * 1000) * expiration_multiplier), //premium inboxes last 10 hours
             [],
-            premium
+            premium,
+            account_id,
         );
         
         EmailStorage.inboxes.push(inbox);
@@ -129,7 +140,30 @@ export default class EmailStorage {
     public static addEmail(email: Email) {
         for(const i of EmailStorage.inboxes) {
             if(i.address === email.to) {
-                i.emails.push(email);
+                //i.premium = PremiumTier.TEMPMAIL_PLUS has an inbox size of 15
+                //i.premium = PremiumTier.TEMPMAIL_ULTRA has an inbox size of 50
+                //i.premium = PremiumTier.TEMPMAIL_FREE has an inbox size of 5
+                
+                let max_size = 5;
+                
+                if(i.premium === PremiumTier.TEMPMAIL_PLUS) {
+                    max_size = 20;
+                } else if(i.premium === PremiumTier.TEMPMAIL_ULTRA) {
+                    max_size = 100;
+                }
+                
+                if(i.emails.length <= max_size) {
+                    i.emails.push(email);
+                }
+                
+                if(i.creator) {
+                    GetStats.instance.getIDWebhook(i.creator).then((webhook) => {
+                        if(webhook) {
+                            webhookSender(webhook, emails);
+                        }
+                    });
+                }
+                
                 return;
             }
         }
