@@ -28,6 +28,7 @@ export default class Inbox {
      * @param emails {Email[]} the emails in this inbox.
      * @param premium {boolean} true if this is a premium inbox, false otherwise
      * @param creator {string} the BananaCrumbs ID that created this account or undefined
+     * @param mfa {string} the MFA token or undefined
      */
     public constructor(
         public readonly address: string,
@@ -36,6 +37,7 @@ export default class Inbox {
         public emails: Email[],
         public readonly premium: PremiumTier,
         public readonly creator: string | undefined,
+        public readonly mfa: string | undefined,
     ) {}
     
 }

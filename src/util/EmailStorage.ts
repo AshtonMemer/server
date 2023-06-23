@@ -19,6 +19,7 @@ import * as dns from "dns";
 import {PremiumTier} from "../entity/PremiumTier";
 import GetStats from "../db/GetStats";
 import webhookSender from "./webhookSender";
+import BananaCrumbsUtils from "./BananaCrumbsUtils";
 
 export default class EmailStorage {
     
@@ -33,7 +34,7 @@ export default class EmailStorage {
      * Generate a new email address.
      * @returns {Inbox} the inbox.
      */
-    public static generateAddress(domain: string | undefined, premium: PremiumTier, account_id: string | undefined): Inbox {
+    public static generateAddress(domain: string | undefined, premium: PremiumTier, account_id: string | undefined, account_token: string | undefined): Inbox {
         
         if(!domain) {
             domain = this.getRandomDomain();
@@ -68,6 +69,7 @@ export default class EmailStorage {
             [],
             premium,
             account_id,
+            account_token,
         );
         
         EmailStorage.inboxes.push(inbox);
@@ -157,8 +159,10 @@ export default class EmailStorage {
                 }
                 
                 if(i.creator) {
-                    GetStats.instance.getIDWebhook(i.creator).then((webhook) => {
+                    GetStats.instance.getIDWebhook(i.creator).then(async (webhook) => {
                         if(webhook) {
+                            if((await BananaCrumbsUtils.login(i.creator as string, "")) !== PremiumTier.TEMPMAIL_ULTRA)
+                                return;
                             webhookSender(webhook, emails);
                         }
                     });

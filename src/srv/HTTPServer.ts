@@ -71,6 +71,7 @@ export default class HTTPServer {
         
         let logged_in: PremiumTier = PremiumTier.NONE;
         let account_id: string | undefined = undefined;
+        let token: string | undefined = undefined;
         
         //try logging into an account (if present)
         try {
@@ -170,7 +171,7 @@ export default class HTTPServer {
             const domain = req.url.substring(10);
             
             try {
-                const address = EmailStorage.generateAddress(domain, logged_in, account_id);
+                const address = EmailStorage.generateAddress(domain, logged_in, account_id, token);
                 
                 res.writeHead(201, {
                     "Content-Type": "application/json",
@@ -189,7 +190,7 @@ export default class HTTPServer {
                 }));
             }
         } else if(req.url === "/generate") {
-            const address = EmailStorage.generateAddress(undefined, logged_in, account_id);
+            const address = EmailStorage.generateAddress(undefined, logged_in, account_id, token);
             
             res.writeHead(201, {
                 "Content-Type": "application/json",
@@ -200,7 +201,7 @@ export default class HTTPServer {
                 token: address.token,
             }));
         } else if(req.url === "/generate/rush") {
-            const address = EmailStorage.generateAddress(EmailStorage.getRandomRushDomain(), logged_in, account_id);
+            const address = EmailStorage.generateAddress(EmailStorage.getRandomRushDomain(), logged_in, account_id, token);
             
             res.writeHead(201, {
                 "Content-Type": "application/json",
