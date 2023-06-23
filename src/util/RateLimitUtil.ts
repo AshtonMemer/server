@@ -132,3 +132,7 @@ setInterval(() => {
     RateLimitUtil.RATE_LIMITS_REGISTERED.clear();
     RateLimitUtil.BANNED_IPS = [];
 }, 1000 * 60 * 5); //Clear the rate limits every 5 minutes.
+
+setInterval(() => {
+    RateLimitUtil.BANNED_IPS = [];
+}, 1000 * 60 * 7);
