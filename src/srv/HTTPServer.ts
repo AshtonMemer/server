@@ -275,8 +275,26 @@ export default class HTTPServer {
                 return;
             }
             
+            if(logged_in !== PremiumTier.TEMPMAIL_ULTRA) {
+                res.writeHead(402);
+                res.end(JSON.stringify({
+                    error: "You must have TempMail Ultra to modify webhooks!",
+                }));
+                return;
+            }
+            
             if(req.url.startsWith("/webhook/add/")) {
                 try {
+                    const webhook = req.url.split("/")[3] as string;
+                    
+                    //match any valid URL
+                    if(!webhook.match(/https?:\/\/(www\.)?[-a-zA-Z0-9@:%._+~#=]{1,256}\.[a-zA-Z0-9()]{1,6}\b([-a-zA-Z0-9()@:%_+.~#?&/=]*)/)) {
+                        res.writeHead(400);
+                        return res.end(JSON.stringify({
+                            "success": false,
+                            "error": "Invalid URL",
+                        }));
+                    }
                     const id = await GetStats.instance.setIDWebhook(account_id, req.url.split("/")[3] as string);
                     res.writeHead(200);
                     return res.end(JSON.stringify({
