@@ -239,33 +239,39 @@ export default class HTTPServer {
             });
         } else if(req.url.startsWith("/custom/")) {
             
-            if(!logged_in) {
-                res.writeHead(402);
-                res.end(JSON.stringify({
-                    "error": "Not logged in or out of time"
-                }));
+            try {
+                if(!logged_in) {
+                    res.writeHead(402);
+                    res.end(JSON.stringify({
+                        "error": "Not logged in or out of time"
+                    }));
+                    
+                    return;
+                }
                 
-                return;
-            }
-            
-            let token, domain;
-            token = req.url.split("/")[2] as string;
-            domain = req.url.split("/")[3] as string;
-            const emails = await EmailStorage.getCustomInbox(token, domain);
-            
-            res.writeHead(200, {
-                "Content-Type": "application/json",
-            });
-            
-            if(emails.length === 0) {
+                let token, domain;
+                token = req.url.split("/")[2] as string;
+                domain = req.url.split("/")[3] as string;
+                const emails = await EmailStorage.getCustomInbox(token, domain);
+                
+                res.writeHead(200, {
+                    "Content-Type": "application/json",
+                });
+                
+                if(emails.length === 0) {
+                    return res.end(JSON.stringify({
+                        email: null,
+                    }));
+                }
+                
                 return res.end(JSON.stringify({
-                    email: null,
+                    email: emails,
                 }));
+            } catch(e) {
+                console.error(e);
+                res.writeHead(500);
+                return res.end("internal server error");
             }
-            
-            return res.end(JSON.stringify({
-                email: emails,
-            }));
         } else if(req.url.startsWith("/webhook/")) {
             
             if(!account_id) {
