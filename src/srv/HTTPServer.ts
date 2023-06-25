@@ -355,7 +355,7 @@ export default class HTTPServer {
             res.writeHead(302);
             
             return res.end(JSON.stringify({
-                error: "See https://tempmail.lol/news/2022/05/17/how-to-use-the-tempmail-api/ for more information on how to use the API.",
+                error: "See https://github.com/tempmail-lol/server/wiki/API-Endpoints for more information on how to use the API.",
             }));
         }
     }

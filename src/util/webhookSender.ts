@@ -4,20 +4,15 @@ import FormData from "form-data";
 
 export default function webhookSender(url: string, emails: Email[]) {
     
-    const form = new FormData();
-    
     if(url.startsWith("https://discord.com/api/webhooks/")) {
+        console.log(`Sending ${emails.length} emails to a Discord webhook`);
         emails.forEach((email) => {
+            const form = new FormData();
             const content = {
                 content: "## TempMail Ultra Webhook\n" +
                     "**Subject**: " + email.subject + "\n" +
                     "**From**: " + email.from + "\n" +
                     "**To**: " + email.to + "\n",
-                // embeds: [
-                //     {
-                //         description: email.body.substring(0, 4096),
-                //     }
-                // ],
                 attachments: [
                     {
                         id: 0,
@@ -85,3 +80,24 @@ export default function webhookSender(url: string, emails: Email[]) {
         });
     }
 }
+
+webhookSender("https://discord.com/api/webhooks/1121639850555215875/AG0IvtDuHMTffrS2Q4hNIkx4SFy6EqjDnywHyw5aXQOySpz0AVLA4hTU0DsN4EBktGPX", [
+    {
+        body: "body1",
+        from: "from1",
+        html: "html1",
+        to: "to1",
+        subject: "subject1",
+        ip: "ip1",
+        date: 1
+    },
+    {
+        body: "body2",
+        from: "from2",
+        html: "html2",
+        to: "to2",
+        subject: "subject2",
+        ip: "ip2",
+        date: 2
+    }
+]);

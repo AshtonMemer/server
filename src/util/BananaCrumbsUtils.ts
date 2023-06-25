@@ -60,8 +60,6 @@ export default class BananaCrumbsUtils {
         
         const url = `https://passport.bananacrumbs.us/login?id=${id}&mfa=${mfa_code}&subcode=${this.subcode}`;
         
-        console.log(`url: ${url}`);
-        
         //make a request to the master server
         const ft = await fetch(url);
         
