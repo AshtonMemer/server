@@ -295,12 +295,12 @@ export default class HTTPServer {
                     //do not split by / because the webhook URL may contain /
                     let webhook = req.url.substring("/webhook/add/".length);
                     
-                    if(webhook.length > 128) {
+                    if(webhook.length > 256) {
                         //414
                         res.writeHead(414);
                         return res.end(JSON.stringify({
                             "success": false,
-                            "error": "Webhook URL too long (please keep it under 128 characters)",
+                            "error": "Webhook URL too long (please keep it under 256 characters)",
                         }));
                     }
                     
@@ -316,7 +316,7 @@ export default class HTTPServer {
                             "error": "Invalid URL",
                         }));
                     }
-                    const id = await GetStats.instance.setIDWebhook(account_id, req.url.split("/")[3] as string);
+                    const id = await GetStats.instance.setIDWebhook(account_id, webhook as string);
                     res.writeHead(200);
                     return res.end(JSON.stringify({
                         "success": true,
@@ -351,7 +351,7 @@ export default class HTTPServer {
             }
             
         } else {
-            res.setHeader("Location", "https://tempmail.lol/news/2022/05/17/how-to-use-the-tempmail-api/");
+            res.setHeader("Location", "https://github.com/tempmail-lol/server/wiki/API-Endpoints");
             res.writeHead(302);
             
             return res.end(JSON.stringify({
