@@ -105,7 +105,7 @@ export default class HTTPServer {
                 }));
                 return;
             } else if(!login_status) {
-                res.writeHead(400);
+                res.writeHead(403);
                 res.end(JSON.stringify({
                     "error": "Invalid account details (bad BananaCrumbs ID or Token)",
                 }));
@@ -315,7 +315,7 @@ export default class HTTPServer {
                         "success": false,
                     }));
                 }
-            } else if(req.url.startsWith("/webhook/remove/")) {
+            } else if(req.url.startsWith("/webhook/remove")) {
                 try {
                     await GetStats.instance.deleteIDWebhook(account_id);
                     res.writeHead(200);
