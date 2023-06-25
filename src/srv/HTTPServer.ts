@@ -292,7 +292,21 @@ export default class HTTPServer {
             
             if(req.url.startsWith("/webhook/add/")) {
                 try {
-                    const webhook = req.url.split("/")[3] as string;
+                    //do not split by / because the webhook URL may contain /
+                    let webhook = req.url.substring("/webhook/add/".length);
+                    
+                    if(webhook.length > 128) {
+                        //414
+                        res.writeHead(414);
+                        return res.end(JSON.stringify({
+                            "success": false,
+                            "error": "Webhook URL too long (please keep it under 128 characters)",
+                        }));
+                    }
+                    
+                    if(!webhook.startsWith("https://") && !webhook.startsWith("http://")) {
+                        webhook = "https://" + webhook;
+                    }
                     
                     //match any valid URL
                     if(!webhook.match(/https?:\/\/(www\.)?[-a-zA-Z0-9@:%._+~#=]{1,256}\.[a-zA-Z0-9()]{1,6}\b([-a-zA-Z0-9()@:%_+.~#?&/=]*)/)) {
