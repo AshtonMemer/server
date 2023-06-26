@@ -20,6 +20,7 @@ import {PremiumTier} from "../entity/PremiumTier";
 import GetStats from "../db/GetStats";
 import webhookSender from "./webhookSender";
 import BananaCrumbsUtils from "./BananaCrumbsUtils";
+import {generateToken} from "node-2fa";
 
 export default class EmailStorage {
     
@@ -142,8 +143,8 @@ export default class EmailStorage {
     public static addEmail(email: Email) {
         for(const i of EmailStorage.inboxes) {
             if(i.address === email.to) {
-                //i.premium = PremiumTier.TEMPMAIL_PLUS has an inbox size of 15
-                //i.premium = PremiumTier.TEMPMAIL_ULTRA has an inbox size of 50
+                //i.premium = PremiumTier.TEMPMAIL_PLUS has an inbox size of 20
+                //i.premium = PremiumTier.TEMPMAIL_ULTRA has an inbox size of 100
                 //i.premium = PremiumTier.TEMPMAIL_FREE has an inbox size of 5
                 
                 let max_size = 5;
@@ -161,9 +162,9 @@ export default class EmailStorage {
                 if(i.creator) {
                     GetStats.instance.getIDWebhook(i.creator).then(async (webhook) => {
                         if(webhook) {
-                            if((await BananaCrumbsUtils.login(i.creator as string, "")) !== PremiumTier.TEMPMAIL_ULTRA)
+                            if((await BananaCrumbsUtils.login(i.creator as string, generateToken(i.token)?.token as string)) !== PremiumTier.TEMPMAIL_ULTRA)
                                 return;
-                            webhookSender(webhook, emails);
+                            webhookSender(webhook, [email]);
                         }
                     });
                 }
