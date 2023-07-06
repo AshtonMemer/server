@@ -191,7 +191,7 @@ async function checkARecord(domain: string, try_again: boolean): Promise<boolean
         
         //check if mx.<domain> has an ipv4 or ipv6 address
         try {
-            const r = await dns.promises.resolve4(domain);
+            const r = await dns.promises.resolve4("mx." + domain);
             
             if(r.length === 1) {
                 return allowed_ips.includes(r[0] as string);
@@ -200,7 +200,7 @@ async function checkARecord(domain: string, try_again: boolean): Promise<boolean
             return false;
         } catch(e) {
             //check for the new IPv6 range
-            const r = await dns.promises.resolve6(domain);
+            const r = await dns.promises.resolve6("mx." + domain);
             
             if(r.length === 1) {
                 return r[0]?.startsWith(secrets.ipv6_range) || false;
@@ -211,7 +211,7 @@ async function checkARecord(domain: string, try_again: boolean): Promise<boolean
         
     } catch(e) {
         if(try_again) {
-            return await checkARecord(domain, false);
+            return await checkARecord("mx." + domain, false);
         } else {
             console.error(e);
             return false;
