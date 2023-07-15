@@ -240,7 +240,7 @@ export default class HTTPServer {
         } else if(req.url.startsWith("/custom/")) {
             
             try {
-                if(!logged_in) {
+                if(logged_in === PremiumTier.NONE) {
                     res.writeHead(402);
                     res.end(JSON.stringify({
                         "error": "Not logged in or out of time"

@@ -57,7 +57,6 @@ export default class RateLimitUtil {
             let acc_rl = this.RATE_LIMITS_REGISTERED.get(account) || 0;
             
             this.RATE_LIMITS_REGISTERED.set(account, (acc_rl) + 1);
-            console.log(`ok ${acc_rl}`);
             
             let max: 2000 | 50000;
             

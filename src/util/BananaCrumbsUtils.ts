@@ -70,7 +70,6 @@ export default class BananaCrumbsUtils {
             
             const data = await ft.text();
             
-            //3am programming
             if(data === "oopsie") {
                 return PremiumTier.NONE;
             }
