@@ -12,12 +12,15 @@
  */
 
 import {createClient} from "redis";
+import {StoredInbox} from "../entity/StoredInbox";
 
-export default class GetStats {
+export default class RedisController {
     
     private client = createClient();
     
-    public static readonly instance = new GetStats();
+    public static readonly instance = new RedisController();
+    
+    public static connected: number;
     
     private constructor() {
         this.client.connect().then(() => {
@@ -27,14 +30,23 @@ export default class GetStats {
         });
     }
     
+    /**
+     * Get the amount of emails the server has received so far
+     */
     public async getStats(): Promise<number> {
         return parseInt(await this.client.GET("exp-stats") || "0");
     }
     
+    /**
+     * Increment the statistics
+     */
     public async incrementStats(): Promise<void> {
         await this.client.INCR("exp-stats");
     }
     
+    /**
+     * Get the domains currently on the server
+     */
     public async getDomains(): Promise<string[]> {
         const domains = await this.client.GET("exp-domains");
         if(domains) {
@@ -91,4 +103,82 @@ export default class GetStats {
         await this.client.DEL(`exp-webhook-${bananacrumbs_id}`);
     }
     
+    public async storeInbox(inbox: StoredInbox): Promise<void> {
+        await this.client.SET("exp-inbox-" + inbox.token, JSON.stringify(inbox));
+    }
+    
+    public async deleteInbox(token: string): Promise<boolean> {
+        if(!token.match(/[A-Za-z0-9_-]+/))
+            return false;
+        
+        await this.client.DEL("exp-inbox-" + token);
+        
+        return true;
+    }
+    
+    public async getInbox(token: string): Promise<StoredInbox | undefined> {
+        if(!token.match(/[A-Za-z0-9_-]+/))
+            return undefined;
+        const raw = await this.client.GET("exp-inbox-" + token);
+        
+        if(!raw) return undefined;
+        
+        return JSON.parse(raw);
+    }
+    
+    public async getInboxByAddress(address: string): Promise<StoredInbox | undefined> {
+        const all_addresses = await this.client.KEYS("exp-inbox-*");
+        
+        for(let i = 0; i < all_addresses.length; i++){
+            const raw = all_addresses[i] as string;
+            const stored_inbox: StoredInbox = JSON.parse(raw);
+            
+            if(stored_inbox.address === address) {
+                return stored_inbox;
+            }
+        }
+        
+        return undefined;
+    }
+    
+    public async clearTimer(): Promise<string[]> {
+        const keys = await this.client.KEYS("exp-inbox-*");
+        
+        //tokens marked for deletion which have expired
+        let marked_for_deletion: string[] = [];
+        
+        keys.forEach((key) => {
+            const data: StoredInbox = JSON.parse(key);
+            if(data.expires <= Date.now()) {
+                marked_for_deletion.push(data.token);
+            }
+        });
+        
+        marked_for_deletion.forEach((token) => {
+            this.deleteInbox(token);
+        });
+        
+        return marked_for_deletion;
+    }
+    
+    public async getConnected(): Promise<number> {
+        return (await this.client.KEYS("exp-inbox-*")).length;
+    }
+    
+    public getConnectedCached(): number {
+        return RedisController.connected;
+    }
+    
 }
+
+//timer to set the connected inboxes
+//since this is an expensive endpoint, this number will be cached
+//instead of on demand like with v1 of the API.
+setInterval(async () => {
+    RedisController.connected = await RedisController.instance.getConnected();
+}, 10000);
+
+//timer to clear the old inboxes
+setInterval(async () => {
+    await RedisController.instance.clearTimer();
+}, 30000);

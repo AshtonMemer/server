@@ -14,7 +14,7 @@
 import {readFileSync} from "fs";
 import * as dns from "dns";
 import sendDiscordMessage from "./util/sendDiscordMessage";
-import GetStats from "./db/GetStats";
+import RedisController from "./db/RedisController";
 import fetch from "node-fetch";
 
 export default class Config {
@@ -42,11 +42,11 @@ export default class Config {
 console.log(`config loaded`);
 
 //load the normal/community domains into memory.
-GetStats.instance.getDomains().then(r => {
+RedisController.instance.getDomains().then(r => {
     Config.EMAIL_DOMAINS = r;
 });
 
-GetStats.instance.getRushDomains().then(r => {
+RedisController.instance.getRushDomains().then(r => {
     Config.RUSH_DOMAINS = r;
 });
 
@@ -61,8 +61,8 @@ setInterval(async () => {
     try {
         
         //get a list of the current community domains
-        let domains = await GetStats.instance.getRushDomains();
-        const banned_domains = await GetStats.instance.getBannedDomains();
+        let domains = await RedisController.instance.getRushDomains();
+        const banned_domains = await RedisController.instance.getBannedDomains();
         
         //add all domains waiting to be added to the service.
         for(let i = 0; i < Config.checking_domains.length; i++) {
@@ -92,7 +92,7 @@ setInterval(async () => {
             //if the domain is a normal domain
             if(Config.EMAIL_DOMAINS.includes(domain)) {
                 domains.splice(domains.indexOf(domain), 1);
-                await GetStats.instance.setRushDomains(domains);
+                await RedisController.instance.setRushDomains(domains);
                 sendDiscordMessage(`Removed ${domain} from rush domains because it is already a normal domain.`);
                 continue;
             }
@@ -106,7 +106,7 @@ setInterval(async () => {
             //if the A or MX record is invalid, remove the domain.
             if(!a || !mx) {
                 domains.splice(domains.indexOf(domain), 1);
-                await GetStats.instance.setRushDomains(domains);
+                await RedisController.instance.setRushDomains(domains);
                 
                 if(!a) {
                     console.log(`Rush domain ${domain} has an invalid A record.`);
@@ -122,7 +122,7 @@ setInterval(async () => {
                 console.log(`Rush domain ${domain} has an invalid TXT record.`);
                 sendMessage = false;
                 domains.splice(domains.indexOf(domain), 1);
-                await GetStats.instance.setRushDomains(domains);
+                await RedisController.instance.setRushDomains(domains);
             }
             
             if(sendMessage && Config.checking_domains.includes(domain)) {
@@ -130,13 +130,13 @@ setInterval(async () => {
             }
         }
         
-        await GetStats.instance.setRushDomains(domains);
+        await RedisController.instance.setRushDomains(domains);
         
     } catch(e) {}
     
     
-    Config.EMAIL_DOMAINS = await GetStats.instance.getDomains();
-    Config.RUSH_DOMAINS = await GetStats.instance.getRushDomains();
+    Config.EMAIL_DOMAINS = await RedisController.instance.getDomains();
+    Config.RUSH_DOMAINS = await RedisController.instance.getRushDomains();
     
     Config.checking_domains = [];
     
@@ -187,7 +187,7 @@ async function checkIP(addr: string): Promise<boolean> {
 async function checkARecord(domain: string, try_again: boolean): Promise<boolean> {
     try {
         
-        const allowed_ips = await GetStats.instance.getAllowedIPs();
+        const allowed_ips = await RedisController.instance.getAllowedIPs();
         
         //check if mx.<domain> has an ipv4 or ipv6 address
         try {

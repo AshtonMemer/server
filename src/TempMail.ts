@@ -18,6 +18,7 @@ import Config from "./Config";
 import EmailStorage from "./util/EmailStorage";
 import HTTPServer from "./srv/HTTPServer";
 import Email from "./entity/Email";
+import registerv2Endpoints from "./srv/api/helpers/registerv2Endpoints";
 
 //pipe emails from the email server to the email storage
 new EmailServer(Config.MAIL_PORT, (email: Email[]) => {
@@ -27,9 +28,13 @@ new EmailServer(Config.MAIL_PORT, (email: Email[]) => {
     }
     
     //add the emails to the storage
-    email.forEach(EmailStorage.addEmail);
+    email.forEach(async (email) => {
+        await EmailStorage.addEmail(email);
+    });
 });
 
 //start the http server
 const http_server = new HTTPServer(Config.HTTP_PORT);
 http_server.start();
+
+registerv2Endpoints();

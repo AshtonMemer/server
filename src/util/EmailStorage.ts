@@ -17,28 +17,30 @@ import {createHash, randomBytes} from "crypto";
 import Email from "../entity/Email";
 import * as dns from "dns";
 import {PremiumTier} from "../entity/PremiumTier";
-import GetStats from "../db/GetStats";
+import RedisController from "../db/RedisController";
 import webhookSender from "./webhookSender";
-import BananaCrumbsUtils from "./BananaCrumbsUtils";
-import {generateToken} from "node-2fa";
+import {StoredInbox} from "../entity/StoredInbox";
 
 export default class EmailStorage {
     
     private constructor() {}
     
-    private static inboxes: Inbox[] = [];
-    public static customs: Map<string, Email[]> = new Map();
+    private static received_emails: Map<string, Email[]> = new Map();
     
-    private static last_access_time = new Map<string, number>();
+    public static customs: Map<string, Email[]> = new Map();
     
     /**
      * Generate a new email address.
      * @returns {Inbox} the inbox.
      */
-    public static generateAddress(domain: string | undefined, premium: PremiumTier, account_id: string | undefined, account_token: string | undefined): Inbox {
+    public static generateAddress(domain: string | undefined, premium: PremiumTier, account_id: string | undefined, account_token: string | undefined, prefix: string | undefined = undefined): Inbox {
         
         if(!domain) {
             domain = this.getRandomDomain();
+        }
+        
+        if(prefix && prefix.length > 12) {
+            prefix = undefined;
         }
         
         //if the domain does not exist
@@ -48,49 +50,52 @@ export default class EmailStorage {
             }
         }
         
-        //generate 5 random base36 characters
-        const first = randomBytes(2).toString("hex");
+        //generate a few random base36 characters for the prefix
+        const first = randomBytes(3).toString("hex");
         
-        const last = Math.floor(Date.now() / 1000).toString(10).substring(3);
+        const last = Math.floor(Date.now() / 1000).toString(16);
         
-        const address_full = `${first}${last}@${domain}`.toLowerCase();
+        //generate the full address with the prefix if it exists
+        const address_full = `${prefix || first}${last}@${domain}`.toLowerCase();
         
         let expiration_multiplier = 1;
         
-        if(premium === PremiumTier.TEMPMAIL_PLUS) {
+        //emails have a max expiration of 1 hour for free accounts,
+        if(premium === PremiumTier.TEMPMAIL_PLUS) { //10 hours for TMP
             expiration_multiplier = 10;
-        } else if(premium === PremiumTier.TEMPMAIL_ULTRA) {
+        } else if(premium === PremiumTier.TEMPMAIL_ULTRA) { //and 30 for TMU
             expiration_multiplier = 30;
         }
         
         const inbox = new Inbox(
             address_full,
             randomBytes(64).toString("base64url"),
-            (Date.now() + (3600 * 1000) * expiration_multiplier), //premium inboxes last 10 hours
+            (Date.now() + (3600 * 1000) * expiration_multiplier),
             [],
             premium,
             account_id,
             account_token,
         );
         
-        EmailStorage.inboxes.push(inbox);
+        (async () => {
+            
+            let webhook: string | undefined;
+            
+            if(account_id)
+                webhook = await RedisController.instance.getIDWebhook(account_id);
+            
+            const stored_inbox: StoredInbox = {
+                premium,
+                webhook: webhook ? webhook : undefined,
+                address: inbox.address,
+                expires: inbox.expiration,
+                token: inbox.token,
+            };
+            
+            await RedisController.instance.storeInbox(stored_inbox);
+        })();
         
         return inbox;
-    }
-    
-    /**
-     * Check if the storage has an email address.
-     * @param address {string} the address.
-     * @returns {boolean} true if the address exists, false otherwise.
-     */
-    public static hasEmail(address: string): boolean {
-        for(const n of EmailStorage.inboxes) {
-            if(n.address === address) {
-                return true;
-            }
-        }
-        
-        return false;
     }
     
     /**
@@ -100,16 +105,7 @@ export default class EmailStorage {
      * @returns {Email[] | undefined} the emails, or undefined if the inbox does not exist (or has expired).
      */
     public static getInbox(token: string): Email[] | undefined {
-        for(const i of EmailStorage.inboxes) {
-            if(i.token === token) {
-                const emails = i.emails;
-                i.emails = []; //clear inbox
-                EmailStorage.last_access_time.set(token, Date.now());
-                return emails;
-            }
-        }
-        
-        return undefined;
+        return this.received_emails.get(token);
     }
     
     /**
@@ -140,84 +136,15 @@ export default class EmailStorage {
      * On an email received.
      * @param email {Email} the email.
      */
-    public static addEmail(email: Email) {
-        for(const i of EmailStorage.inboxes) {
-            if(i.address === email.to) {
-                //i.premium = PremiumTier.TEMPMAIL_PLUS has an inbox size of 20
-                //i.premium = PremiumTier.TEMPMAIL_ULTRA has an inbox size of 100
-                //i.premium = PremiumTier.TEMPMAIL_FREE has an inbox size of 5
-                
-                let max_size = 5;
-                
-                if(i.premium === PremiumTier.TEMPMAIL_PLUS) {
-                    max_size = 20;
-                } else if(i.premium === PremiumTier.TEMPMAIL_ULTRA) {
-                    max_size = 100;
-                }
-                
-                if(i.emails.length <= max_size) {
-                    i.emails.push(email);
-                }
-                
-                if(i.creator) {
-                    GetStats.instance.getIDWebhook(i.creator).then(async (webhook) => {
-                        if(webhook) {
-                            if((await BananaCrumbsUtils.login(i.creator as string, generateToken(i.token)?.token as string)) !== PremiumTier.TEMPMAIL_ULTRA)
-                                return;
-                            webhookSender(webhook, [email]);
-                        }
-                    });
-                }
-                
-                return;
+    public static async addEmail(email: Email) {
+        const inbox = await RedisController.instance.getInboxByAddress(email.to);
+        
+        if(inbox) {
+            if(inbox.webhook) {
+                return webhookSender(inbox.webhook, [email]);
             }
+            this.received_emails.get(inbox.token)?.push(email);
         }
-        
-        //if the email is not for an inbox, add it to the customs map.
-        const domain = email.to.split("@")[1] as string;
-        
-        //filter out expired emails
-        if(Config.EMAIL_DOMAINS.includes(domain)) {
-            return;
-        } else if(Config.RUSH_DOMAINS.includes(domain)) {
-            return;
-        }
-        
-        //the custom domain emails should be limited to 25 emails.
-        const emails = EmailStorage.customs.get(domain) || [];
-        if(emails.length >= 25) {
-            return;
-        }
-        
-        emails.push(email);
-        
-        EmailStorage.customs.set(domain, emails);
-    }
-    
-    /**
-     * Timer to run for clearing the
-     * email storage of expired inboxes.
-     */
-    public static clearTimer() {
-        for(const i of EmailStorage.inboxes) {
-            if(i.expiration < Date.now()) {
-                EmailStorage.inboxes.splice(EmailStorage.inboxes.indexOf(i), 1);
-            }
-        }
-        
-        //also remove inboxes that have not been accessed in the last 10 minutes
-        for(const [token, time] of EmailStorage.last_access_time) {
-            if(time < Date.now() - (10 * 60 * 1000)) {
-                EmailStorage.last_access_time.delete(token);
-            }
-        }
-    }
-    
-    /**
-     * Get the amount of connected people (or active inboxes)
-     */
-    public static getConnected() {
-        return EmailStorage.inboxes.length + EmailStorage.customs.size;
     }
     
     public static async getCustomInbox(token: string, domain: string): Promise<Email[]> {
@@ -244,10 +171,6 @@ export default class EmailStorage {
         return emails;
     }
 }
-
-setInterval(() => {
-    EmailStorage.clearTimer()
-}, 10000);
 
 //every 10 seconds, remove all custom domain emails that are more than 10 hours old
 setInterval(() => {

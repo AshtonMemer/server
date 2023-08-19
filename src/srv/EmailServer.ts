@@ -12,10 +12,9 @@
  */
 
 import Email from "../entity/Email";
-import {SMTPServer, SMTPServerAddress, SMTPServerDataStream, SMTPServerSession} from "smtp-server";
+import {SMTPServer, SMTPServerDataStream, SMTPServerSession} from "smtp-server";
 import {simpleParser} from "mailparser";
-import GetStats from "../db/GetStats";
-import Config from "../Config";
+import RedisController from "../db/RedisController";
 import {readFileSync} from "fs";
 import fetch from "node-fetch";
 
@@ -45,21 +44,6 @@ export default class EmailServer {
                 } catch(e) {
                     console.error(e);
                 }
-            },
-            onRcptTo(address: SMTPServerAddress, _session: SMTPServerSession, callback: (err?: (Error | null)) => void) {
-                
-                //if the address is not [four base36 chars][7 numbers]@[domain] then reject it
-                //ex: c4ab7174456@inactivemachine.com
-                if(Config.EMAIL_DOMAINS.indexOf(address.address.split("@")[1] as string) !== -1) {
-                    //passthrough webmaster emails
-                    if(address.address.startsWith("webmaster")) return callback();
-                    
-                    if(!address.address.match(/^[a-z0-9]{4}[0-9]{7}@[a-z0-9.]+$/i)) return callback(new Error("Invalid address"));
-                } else if(Config.RUSH_DOMAINS.indexOf(address.address.split("@")[1] as string) !== -1) {
-                    if(!address.address.match(/^[a-z0-9]{4}[0-9]{7}@[a-z0-9._-]+$/i)) return callback(new Error("Invalid address"));
-                }
-                
-                callback();
             },
         });
         
@@ -145,7 +129,7 @@ export default class EmailServer {
             
             let emails = [email];
             
-            await GetStats.instance.incrementStats();
+            await RedisController.instance.incrementStats();
             
             //search for any carbon copy addresses (unlikely)
             if(parsed.cc && parsed.cc instanceof Array) {
@@ -154,7 +138,7 @@ export default class EmailServer {
                     if(!cc || !cc.value) continue;
                     for(const c of cc.value) {
                         
-                        await GetStats.instance.incrementStats();
+                        await RedisController.instance.incrementStats();
                         
                         if(c.address) emails.push(new Email(
                             sender,
@@ -176,7 +160,7 @@ export default class EmailServer {
                     if(!cc || !cc.value) continue;
                     for(const c of cc.value) {
                         
-                        await GetStats.instance.incrementStats();
+                        await RedisController.instance.incrementStats();
                         
                         if(c.address) emails.push(new Email(
                             sender,
