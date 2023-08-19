@@ -52,6 +52,20 @@ export default async function v2(req: IncomingMessage, res: ServerResponse, ip: 
             });
         }
         
+        if(body.length === 0) {
+            body = "{}"; //prevent some issues
+        }
+        
+        //if the body is not valid JSON, detect it here:
+        try {
+            JSON.parse(body);
+        } catch(e) {
+            res.writeHead(400);
+            res.end(JSON.stringify({
+                error: "Invalid JSON data provided for POST request",
+            }))
+        }
+        
         //get the endpoint
         const endpoint = RegisteredEndpoints.endpoints.find((endpoint) => {
             return endpoint.path === url_noquery;

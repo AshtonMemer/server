@@ -84,6 +84,9 @@ export default class EmailStorage {
             if(account_id)
                 webhook = await RedisController.instance.getIDWebhook(account_id);
             
+            if(premium !== PremiumTier.TEMPMAIL_ULTRA)
+                webhook = undefined;
+            
             const stored_inbox: StoredInbox = {
                 premium,
                 webhook: webhook ? webhook : undefined,
@@ -147,28 +150,76 @@ export default class EmailStorage {
         }
     }
     
-    public static async getCustomInbox(token: string, domain: string): Promise<Email[]> {
-        //verify the TXT record _tmpml.example.com should be the sha512 of the token
-        //if it is, return the emails.
-        //if not, return an empty array.
-        const res = await dns.promises.resolveTxt(`_tmpml.${domain}`);
-        if(res.length === 0) {
+    /**
+     * @deprecated
+     * @param token
+     * @param domain
+     */
+    public static async getCustomInboxLegacy(token: string, domain: string): Promise<Email[]> {
+        try {
+            //verify the TXT record _tmpml.example.com should be the sha512 of the token
+            //if it is, return the emails.
+            //if not, return an empty array.
+            const res = await dns.promises.resolveTxt(`_tmpml.${domain}`);
+            if(res.length === 0) {
+                return [];
+            }
+            
+            // @ts-ignore
+            const txt = res[0][0];
+            
+            const sha512 = createHash("sha512").update(token).digest("hex");
+            
+            if(txt !== sha512) {
+                return [];
+            }
+            
+            const emails = EmailStorage.customs.get(domain) || [];
+            EmailStorage.customs.set(domain, []);
+            
+            return emails;
+        } catch(e) {
             return [];
         }
-        
-        // @ts-ignore
-        const txt = res[0][0];
-        
-        const sha512 = createHash("sha512").update(token).digest("hex");
-        
-        if(txt !== sha512) {
-            return [];
+    }
+    
+    /**
+     * Check the custom inbox for the v2 API.
+     * @param password {string} the password for the domain.
+     * @param domain {string} the domain
+     * @param bananacrumbs_id {string} the BananaCrumbs ID of the user
+     * @param bananacrumbs_token {string} the BananaCrumbs Token of the user
+     * @returns {Email[] | "invalid_password" | undefined} the email array, "invalid_password", or undefined if there was an issue checking
+     */
+    public static async checkCustomUUIDInbox(password: string, domain: string, bananacrumbs_id: string, bananacrumbs_token: string): Promise<Email[] | "invalid_password" | undefined> {
+        try {
+            const long_hash = createHash("sha512").update(domain + bananacrumbs_id + bananacrumbs_token)
+                .digest()
+                .toString("hex");
+            
+            const uuid = long_hash.substring(128 - 32);
+            
+            const res = await dns.promises.resolveTxt(`${uuid}.${domain}`);
+            if(res.length === 0) {
+                return [];
+            }
+            
+            // @ts-ignore
+            const txt = res[0][0];
+            
+            const sha512 = createHash("sha512").update(password).digest("hex");
+            
+            if(txt !== sha512) {
+                return "invalid_password";
+            }
+            
+            const emails = EmailStorage.customs.get(domain) || [];
+            EmailStorage.customs.set(domain, []);
+            
+            return emails;
+        } catch(e) {
+            return undefined;
         }
-        
-        const emails = EmailStorage.customs.get(domain) || [];
-        EmailStorage.customs.set(domain, []);
-        
-        return emails;
     }
 }
 

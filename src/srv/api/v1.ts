@@ -180,7 +180,7 @@ export default async function v1(req: IncomingMessage, res: ServerResponse, ip: 
             let token, domain;
             token = req.url.split("/")[2] as string;
             domain = req.url.split("/")[3] as string;
-            const emails = await EmailStorage.getCustomInbox(token, domain);
+            const emails = await EmailStorage.getCustomInboxLegacy(token, domain);
             
             res.writeHead(200, {
                 "Content-Type": "application/json",

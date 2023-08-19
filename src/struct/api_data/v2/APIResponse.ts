@@ -10,7 +10,9 @@
  * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
  * OTHER DEALINGS IN THE SOFTWARE.
  */
+import {HTTPCode} from "../../HTTPCode";
+
 export type APIResponse = {
     body: string,
-    status_code: 200 | 201 | 204 | 400 | 401 | 403 | 404 | 405 | 500,
+    status_code: HTTPCode,
 };
