@@ -13,10 +13,10 @@
 
 import Email from "../entity/Email";
 import {SMTPServer, SMTPServerDataStream, SMTPServerSession} from "smtp-server";
-import {simpleParser} from "mailparser";
+import {AddressObject, simpleParser} from "mailparser";
 import RedisController from "../db/RedisController";
 import {readFileSync} from "fs";
-import fetch from "node-fetch";
+import webhookSender from "../util/webhookSender";
 
 /**
  * Handles the incoming emails.
@@ -86,32 +86,6 @@ export default class EmailServer {
             const sender = session.envelope.mailFrom ? session.envelope.mailFrom.address : undefined;
             const rcpt   = session.envelope.rcptTo.map(rcpt => rcpt.address)[0];
             
-            //intercept emails to webmaster
-            if(rcpt && rcpt.startsWith("webmaster@")) {
-                const secrets = JSON.parse(readFileSync("./src/secrets.json").toString());
-                const url = secrets.webmaster_url as string;
-                
-                await fetch(url, {
-                    method: "POST",
-                    headers: {
-                        "Content-Type": "application/json",
-                    },
-                    body: JSON.stringify({
-                        "content": "null",
-                        "embeds": [
-                            {
-                                "title": "Webmaster Email",
-                                "description": (parsed.html ? parsed.html : parsed.text)?.substring(0, 4000),
-                                "color": null
-                            }
-                        ],
-                        "attachments": []
-                    }),
-                });
-                
-                return callback();
-            }
-            
             //if sender/rcpt are not set
             if(!sender || !rcpt) {
                 return callback(new Error("Invalid envelope (nullish sender or rcpt)"));
@@ -129,19 +103,29 @@ export default class EmailServer {
             
             let emails = [email];
             
+            //intercept emails to webmaster
+            if(rcpt && rcpt.startsWith("webmaster@")) {
+                const secrets = JSON.parse(readFileSync("./src/secrets.json").toString());
+                const url = secrets.webmaster_url as string;
+                
+                webhookSender(url, emails);
+                return;
+            }
+            
             await RedisController.instance.incrementStats();
             
-            //search for any carbon copy addresses (unlikely)
-            if(parsed.cc && parsed.cc instanceof Array) {
-                for(let i = 0; i < parsed.cc.length; i++){
-                    const cc = parsed.cc[i];
+            async function addCC(type: "cc" | "bcc") {
+                for(let i = 0; i < (parsed[type] as AddressObject[]).length; i++){
+                    const cc = ((parsed.cc as AddressObject[])[i]);
+                    
                     if(!cc || !cc.value) continue;
+                    
                     for(const c of cc.value) {
                         
                         await RedisController.instance.incrementStats();
                         
                         if(c.address) emails.push(new Email(
-                            sender,
+                            sender as string,
                             c.address,
                             parsed.text || "[no subject]",
                             parsed.text || "[email has empty or invalid body]",
@@ -153,26 +137,14 @@ export default class EmailServer {
                 }
             }
             
-            //search for any bcc addresses (may be used for newsletters)
+            //search for any carbon copy addresses (unlikely)
+            if(parsed.cc && parsed.cc instanceof Array) {
+                await addCC("cc");
+            }
+            
+            //search for any bcc addresses (might be used for newsletters)
             if(parsed.bcc && parsed.bcc instanceof Array) {
-                for(let i = 0; i < parsed.bcc.length; i++){
-                    const cc = parsed.bcc[i];
-                    if(!cc || !cc.value) continue;
-                    for(const c of cc.value) {
-                        
-                        await RedisController.instance.incrementStats();
-                        
-                        if(c.address) emails.push(new Email(
-                            sender,
-                            c.address,
-                            parsed.text || "[no subject]",
-                            parsed.text || "[email has empty or invalid body]",
-                            Date.now(),
-                            session.remoteAddress,
-                            parsed.html || undefined,
-                        ));
-                    }
-                }
+                await addCC("bcc");
             }
             
             listener(emails);

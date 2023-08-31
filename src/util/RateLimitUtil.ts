@@ -62,7 +62,7 @@ export default class RateLimitUtil {
             
             if(tier === PremiumTier.TEMPMAIL_PLUS) max = 2000;
             if(tier === PremiumTier.TEMPMAIL_ULTRA) max = 50000;
-            else return false;
+            else return false; //not logged in
             
             return acc_rl > max;
         }

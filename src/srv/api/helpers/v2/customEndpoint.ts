@@ -15,20 +15,13 @@ import {APIResponse} from "../../../../struct/api_data/v2/APIResponse";
 import {HTTPEndpointParams} from "../../../../struct/api_data/v2/HTTPEndpointParams";
 import {createHash} from "crypto";
 import EmailStorage from "../../../../util/EmailStorage";
-import {HTTPCode} from "../../../../struct/HTTPCode";
+import makeError from "../../../helper/makeError";
 
 type CustomDomainType = {
     uuid: string,
 };
 
-function makeError(error: string, code: HTTPCode = 400): APIResponse {
-    return {
-        body: JSON.stringify({
-            error
-        }),
-        status_code: code,
-    };
-}
+
 
 export default async function customEndpoint(data: HTTPEndpointParams): Promise<APIResponse> {
     if(data.method === "GET") {

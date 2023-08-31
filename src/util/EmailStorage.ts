@@ -20,6 +20,7 @@ import {PremiumTier} from "../entity/PremiumTier";
 import RedisController from "../db/RedisController";
 import webhookSender from "./webhookSender";
 import {StoredInbox} from "../entity/StoredInbox";
+import BananaCrumbsUtils from "./BananaCrumbsUtils";
 
 export default class EmailStorage {
     
@@ -45,7 +46,7 @@ export default class EmailStorage {
         
         //if the domain does not exist
         if(!Config.EMAIL_DOMAINS.includes(domain)) {
-            if(!Config.RUSH_DOMAINS.includes(domain)) {
+            if(!Config.COMMUNITY_DOMAINS.includes(domain)) {
                 throw new Error("Invalid domain");
             }
         }
@@ -107,8 +108,26 @@ export default class EmailStorage {
      * @param token {string} the token of the inbox.
      * @returns {Email[] | undefined} the emails, or undefined if the inbox does not exist (or has expired).
      */
-    public static getInbox(token: string): Email[] | undefined {
-        return this.received_emails.get(token);
+    public static async getInbox(token: string): Promise<Email[] | undefined> {
+        const emails = this.received_emails.get(token);
+        
+        let exists = false;
+        
+        if((await (RedisController.instance.getInbox(token)))?.address) {
+            exists = true;
+        }
+        
+        //existing addresses may not be in the received_emails map.
+        //This is because they are not stored there until an email is received.
+        if(exists) {
+            this.received_emails.delete(token);
+            if(!emails || emails.length === 0)
+                return [];
+            else
+                return emails;
+        } else {
+            return undefined;
+        }
     }
     
     /**
@@ -122,17 +141,17 @@ export default class EmailStorage {
     }
     
     /**
-     * Get a random rush email domain.
+     * Get a random community email domain.
      * @returns {string} the domain.
      * @private
      */
-    public static getRandomRushDomain(): string {
-        if(Config.RUSH_DOMAINS.length === 0) {
+    public static getRandomCommunityDomain(): string {
+        if(Config.COMMUNITY_DOMAINS.length === 0) {
             //if there are no rush domains, just return a random domain
             return this.getRandomDomain();
         }
         
-        return Config.RUSH_DOMAINS[Math.floor(Math.random() * Config.RUSH_DOMAINS.length)] as string;
+        return Config.COMMUNITY_DOMAINS[Math.floor(Math.random() * Config.COMMUNITY_DOMAINS.length)] as string;
     }
     
     /**
@@ -146,7 +165,63 @@ export default class EmailStorage {
             if(inbox.webhook) {
                 return webhookSender(inbox.webhook, [email]);
             }
+            
+            if(!this.received_emails.has(inbox.token)) {
+                this.received_emails.set(inbox.token, []);
+            }
+            
             this.received_emails.get(inbox.token)?.push(email);
+        } else {
+            
+            const domain = email.to.split("@")[1] || "";
+            
+            //check for custom domain
+            if(Config.EMAIL_DOMAINS.includes(domain) || Config.COMMUNITY_DOMAINS.includes(domain)) {
+                //invalid or expired
+                return;
+            }
+            
+            //check if the domain has a webhook associated with it.
+            //if it does, return true so this email will not be put
+            //into the customs map.
+            async function checkWebhook(): Promise<boolean> {
+                try {
+                    const bcid = await RedisController.instance.getCustomWebhookOwner(domain);
+                    
+                    if(bcid === "did_not_exist") {
+                        return false;
+                    }
+                    
+                    const webhook = await RedisController.instance.getIDWebhook(bcid)
+                    
+                    if(webhook) {
+                        
+                        if(BananaCrumbsUtils.login()) {
+                            
+                        }
+                        
+                        webhookSender(webhook, [email]);
+                        return true;
+                    }
+                    
+                    return false;
+                } catch(e) {
+                    console.error(e);
+                    return false;
+                }
+            }
+            
+            if(await checkWebhook()) {
+                return;
+            }
+            
+            const custom_inbox = this.customs.get(domain);
+            
+            if(!custom_inbox) {
+                this.customs.set(domain, []);
+            }
+            
+            this.customs.get(domain)?.push(email);
         }
     }
     
@@ -223,11 +298,11 @@ export default class EmailStorage {
     }
 }
 
-//every 10 seconds, remove all custom domain emails that are more than 10 hours old
+//every 10 seconds, remove all custom domain emails that are more than 1 hour old
 setInterval(() => {
     const now = Date.now();
     for(const [domain, emails] of EmailStorage.customs) {
-        const new_emails = emails.filter(e => e.date > now - (10 * 60 * 60 * 1000));
+        const new_emails = emails.filter(e => e.date > now - (60 * 60 * 1000));
         EmailStorage.customs.set(domain, new_emails);
     }
 }, 10000);

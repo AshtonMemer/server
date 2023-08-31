@@ -12,19 +12,10 @@
  */
 import {HTTPEndpointParams} from "../../../../struct/api_data/v2/HTTPEndpointParams";
 import {APIResponse} from "../../../../struct/api_data/v2/APIResponse";
-import {HTTPCode} from "../../../../struct/HTTPCode";
 import RateLimitUtil from "../../../../util/RateLimitUtil";
 import {readFileSync} from "fs";
 import Config from "../../../../Config";
-
-function makeError(error: string, code: HTTPCode = 400): APIResponse {
-    return {
-        body: JSON.stringify({
-            error
-        }),
-        status_code: code,
-    };
-}
+import makeError from "../../../helper/makeError";
 
 export default async function communityEndpoint(data: HTTPEndpointParams): Promise<APIResponse> {
     

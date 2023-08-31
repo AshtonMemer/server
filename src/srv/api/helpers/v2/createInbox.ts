@@ -35,7 +35,7 @@ export default async function createInbox(data: HTTPEndpointParams): Promise<API
         let domain: string | undefined;
         
         if(json.community) {
-            domain = EmailStorage.getRandomRushDomain();
+            domain = EmailStorage.getRandomCommunityDomain();
         }
         
         //create an email address with the specified parameters
@@ -58,7 +58,7 @@ export default async function createInbox(data: HTTPEndpointParams): Promise<API
         return {
             status_code: 400,
             body: JSON.stringify({
-                error: `TempMailTV Endpoint Error: ${e}.  Did you provide a valid domain name?`,
+                error: `TempMail.TV Endpoint Error: ${e}.  Did you provide a valid domain name?`,
             }),
         }
     }

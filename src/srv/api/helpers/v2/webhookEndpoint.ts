@@ -12,19 +12,10 @@
  */
 import {HTTPEndpointParams} from "../../../../struct/api_data/v2/HTTPEndpointParams";
 import {APIResponse} from "../../../../struct/api_data/v2/APIResponse";
-import {HTTPCode} from "../../../../struct/HTTPCode";
 import {PremiumTier} from "../../../../entity/PremiumTier";
 import validateWebhook from "../../../helper/validateWebhook";
 import RedisController from "../../../../db/RedisController";
-
-function makeError(error: string, code: HTTPCode = 400): APIResponse {
-    return {
-        body: JSON.stringify({
-            error
-        }),
-        status_code: code,
-    };
-}
+import makeError from "../../../helper/makeError";
 
 export default async function webhookEndpoint(data: HTTPEndpointParams): Promise<APIResponse> {
     if(!data.bananacrumbs_token || !data.bananacrumbs_id) {
@@ -57,6 +48,8 @@ export default async function webhookEndpoint(data: HTTPEndpointParams): Promise
         
         return makeError("You must have TempMail Ultra to set webhooks on your account.");
     } else if(data.method === "DELETE") {
+        //do not check auth when deleting, so users who no longer have TMU can
+        //still delete the webhooks which are attached to their accounts
         await RedisController.instance.deleteIDWebhook(data.bananacrumbs_id);
         
         return {

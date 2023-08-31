@@ -49,8 +49,8 @@ export default async function inboxEndpoint(data: HTTPEndpointParams): Promise<A
         
         //get emails from an inbox
         if(data.method === "GET") {
-            
-            const emails = EmailStorage.getInbox(token);
+            console.log(token)
+            const emails = await EmailStorage.getInbox(token);
             
             //expired inbox
             if(!emails) {

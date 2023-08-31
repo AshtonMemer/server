@@ -32,7 +32,7 @@ export default class Config {
     public static EMAIL_DOMAINS: string[] = JSON.parse(readFileSync("domains.json").toString()).domains;
     
     //now known as "community domains" (these are really stored in Redis)
-    public static RUSH_DOMAINS: string[] = JSON.parse(readFileSync("domains.json").toString()).rush;
+    public static COMMUNITY_DOMAINS: string[] = JSON.parse(readFileSync("domains.json").toString()).rush;
     
     //community domains which are currently being checked.
     public static checking_domains: string[] = [];
@@ -46,8 +46,8 @@ RedisController.instance.getDomains().then(r => {
     Config.EMAIL_DOMAINS = r;
 });
 
-RedisController.instance.getRushDomains().then(r => {
-    Config.RUSH_DOMAINS = r;
+RedisController.instance.getCommunityDomains().then(r => {
+    Config.COMMUNITY_DOMAINS = r;
 });
 
 //locks the IP checker from being run multiple times at once
@@ -61,7 +61,7 @@ setInterval(async () => {
     try {
         
         //get a list of the current community domains
-        let domains = await RedisController.instance.getRushDomains();
+        let domains = await RedisController.instance.getCommunityDomains();
         const banned_domains = await RedisController.instance.getBannedDomains();
         
         //add all domains waiting to be added to the service.
@@ -92,7 +92,7 @@ setInterval(async () => {
             //if the domain is a normal domain
             if(Config.EMAIL_DOMAINS.includes(domain)) {
                 domains.splice(domains.indexOf(domain), 1);
-                await RedisController.instance.setRushDomains(domains);
+                await RedisController.instance.setCommunityDomains(domains);
                 sendDiscordMessage(`Removed ${domain} from rush domains because it is already a normal domain.`);
                 continue;
             }
@@ -106,7 +106,7 @@ setInterval(async () => {
             //if the A or MX record is invalid, remove the domain.
             if(!a || !mx) {
                 domains.splice(domains.indexOf(domain), 1);
-                await RedisController.instance.setRushDomains(domains);
+                await RedisController.instance.setCommunityDomains(domains);
                 
                 if(!a) {
                     console.log(`Rush domain ${domain} has an invalid A record.`);
@@ -122,7 +122,7 @@ setInterval(async () => {
                 console.log(`Rush domain ${domain} has an invalid TXT record.`);
                 sendMessage = false;
                 domains.splice(domains.indexOf(domain), 1);
-                await RedisController.instance.setRushDomains(domains);
+                await RedisController.instance.setCommunityDomains(domains);
             }
             
             if(sendMessage && Config.checking_domains.includes(domain)) {
@@ -130,13 +130,13 @@ setInterval(async () => {
             }
         }
         
-        await RedisController.instance.setRushDomains(domains);
+        await RedisController.instance.setCommunityDomains(domains);
         
     } catch(e) {}
     
     
     Config.EMAIL_DOMAINS = await RedisController.instance.getDomains();
-    Config.RUSH_DOMAINS = await RedisController.instance.getRushDomains();
+    Config.COMMUNITY_DOMAINS = await RedisController.instance.getCommunityDomains();
     
     Config.checking_domains = [];
     

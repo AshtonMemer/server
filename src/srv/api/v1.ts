@@ -129,7 +129,7 @@ export default async function v1(req: IncomingMessage, res: ServerResponse, ip: 
             token: address.token,
         }));
     } else if(req.url === "/generate/rush") {
-        const address = EmailStorage.generateAddress(EmailStorage.getRandomRushDomain(), premiumTier, account_id, account_token);
+        const address = EmailStorage.generateAddress(EmailStorage.getRandomCommunityDomain(), premiumTier, account_id, account_token);
         
         res.writeHead(201, {
             "Content-Type": "application/json",
@@ -141,7 +141,7 @@ export default async function v1(req: IncomingMessage, res: ServerResponse, ip: 
         }));
     } else if(req.url.startsWith("/auth/")) {
         const token = req.url.substring("/auth/".length);
-        const emails = EmailStorage.getInbox(token);
+        const emails = await EmailStorage.getInbox(token);
         
         res.writeHead(200, {
             "Content-Type": "application/json",
