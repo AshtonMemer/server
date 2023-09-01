@@ -196,8 +196,9 @@ export default class EmailStorage {
                     
                     if(webhook) {
                         
-                        if(BananaCrumbsUtils.login()) {
-                            
+                        //check if BCID has time
+                        if(!(await BananaCrumbsUtils.checkTempMailUltraTime(bcid))) {
+                            return false;
                         }
                         
                         webhookSender(webhook, [email]);
@@ -211,6 +212,7 @@ export default class EmailStorage {
                 }
             }
             
+            //if the webhook is false, set it to the custom domain
             if(await checkWebhook()) {
                 return;
             }
@@ -260,6 +262,7 @@ export default class EmailStorage {
     
     /**
      * Check the custom inbox for the v2 API.
+     * 
      * @param password {string} the password for the domain.
      * @param domain {string} the domain
      * @param bananacrumbs_id {string} the BananaCrumbs ID of the user

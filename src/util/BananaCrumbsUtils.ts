@@ -27,7 +27,50 @@ export default class BananaCrumbsUtils {
      */
     private static user_cache = new Map<string, string>();
     
+    /**
+     * 
+     * @private
+     */
+    private static tmu_cache: string[] = [];
+    
     private static subcode = secrets.subcode;
+    
+    /**
+     * Check time for TempMail Ultra.
+     * 
+     * This is used only for webhook checking because only the user's BCID
+     * is stored in the database.
+     * 
+     * @param id {string}
+     * @returns {boolean} true if the user has TMU time, false otherwise
+     */
+    public static async checkTempMailUltraTime(id: string): Promise<boolean> {
+        //no tests need to be done on the BCID since it has already been checked
+        //before it was entered into the database
+        
+        const url = `https://passport.bananacrumbs.us/tempmail_ultra_login?id=${id}&subcode=${this.subcode}`;
+        
+        //check cache for ID hit
+        if(this.tmu_cache.includes(id)) {
+            return true;
+        }
+        
+        try {
+            const res = await fetch(url, {
+                method: "GET",
+            });
+            
+            //200 on success, 400+ on fail
+            if(res.ok) {
+                this.tmu_cache.push(id);
+                return true;
+            }
+            
+            return false;
+        } catch(e) {
+            return false;
+        }
+    }
     
     /**
      * Test a user account by logging in.
@@ -103,6 +146,7 @@ export default class BananaCrumbsUtils {
      */
     public static clearUserCache() {
         this.user_cache.clear();
+        this.tmu_cache = [];
     }
     
 }

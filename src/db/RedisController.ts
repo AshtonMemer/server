@@ -19,10 +19,13 @@ import {createHash} from "crypto";
 
 export default class RedisController {
     
+    //redis instance
     private client = createClient();
     
+    //redis controller instance
     public static readonly instance = new RedisController();
     
+    //cached amount of connected users
     public static connected: number;
     
     private constructor() {
@@ -285,6 +288,26 @@ export default class RedisController {
         await this.client.DECR("exp-custom-domain-webhooks-" + bananacrumbs_id);
         
         return DeleteCustomWebhookRedisResponseType.SUCCESS;
+    }
+    
+    /**
+     * Get the amount of webhooks a user has on his/her account.
+     * 
+     * @param bananacrumbs_id {string} the BananaCrumbs ID of the user
+     * @returns {number | false} the number, or false if it is not in the database
+     */
+    public async getCustomDomainWebhookCount(bananacrumbs_id: string): Promise<number | false> {
+        if(!bananacrumbs_id.match(/[0-9]{24}/)) {
+            return false;
+        }
+        
+        const whs = await this.client.GET("exp-custom-domain-webhooks-" + bananacrumbs_id);
+        
+        if(!whs) {
+            return false;
+        }
+        
+        return Number(whs);
     }
     
     /**
