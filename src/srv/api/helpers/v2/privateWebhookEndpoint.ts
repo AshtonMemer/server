@@ -13,7 +13,7 @@ import {DeleteCustomWebhookRedisResponseType} from "../../../../entity/DeleteCus
  */
 export default async function privateWebhookEndpoint(data: HTTPEndpointParams): Promise<APIResponse> {
     
-    if(!data.bananacrumbs_id || !data.bananacrumbs_token) {
+    if(!data.bananacrumbs_id || !data.bananacrumbs_token && data.method !== "DELETE") {
         return makeError("You must be logged in to use this endpoint (TempMail Plus or higher NOT required for DELETE).");
     }
     
