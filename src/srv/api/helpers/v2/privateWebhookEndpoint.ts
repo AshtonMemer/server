@@ -32,8 +32,9 @@ export default async function privateWebhookEndpoint(data: HTTPEndpointParams): 
             case DeleteCustomWebhookRedisResponseType.INVALID_BANANACRUMBS_ID:
                 return makeError("Invalid BananaCrumbs ID", 400);
             case DeleteCustomWebhookRedisResponseType.DID_NOT_EXIST:
-            case DeleteCustomWebhookRedisResponseType.INVALID_DOMAIN_REGEX:
                 return makeError("No such domain exists", 400);
+            case DeleteCustomWebhookRedisResponseType.INVALID_DOMAIN_REGEX:
+                return makeError("Invalid domain entry", 400);
             case DeleteCustomWebhookRedisResponseType.SUCCESS:
                 return {
                     body: JSON.stringify({
