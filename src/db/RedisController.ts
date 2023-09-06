@@ -217,6 +217,12 @@ export default class RedisController {
             const data: StoredInbox = JSON.parse(key);
             if(data.expires <= Date.now()) {
                 marked_for_deletion.push(data.token);
+                return;
+            }
+            
+            //clear timers: emails expire after 10 minutes since last access time
+            if(data.last_access_time + 600000 <= Date.now()) {
+                marked_for_deletion.push(data.token);
             }
         });
         

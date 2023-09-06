@@ -19,4 +19,5 @@ export type StoredInbox = {
     address: string,
     expires: number,
     token: string,
+    last_access_time: number,
 };
