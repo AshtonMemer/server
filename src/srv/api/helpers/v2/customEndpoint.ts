@@ -16,6 +16,7 @@ import {HTTPEndpointParams} from "../../../../struct/api_data/v2/HTTPEndpointPar
 import {createHash} from "crypto";
 import EmailStorage from "../../../../util/EmailStorage";
 import makeError from "../../../helper/makeError";
+import {TempMailErrorCodes} from "../../../../static/TempMailErrorCodes";
 
 type CustomDomainType = {
     uuid: string,
@@ -29,28 +30,30 @@ export default async function customEndpoint(data: HTTPEndpointParams): Promise<
         const query = data.query;
         
         if(!query) {
-            return makeError("Invalid query string");
+            return makeError("Invalid query string", 400, TempMailErrorCodes.BAD_QUERY_STRING);
         }
         
         const domain = query.get("domain");
         const password = query.get("password");
         
         if(!domain || !password) {
-            return makeError("Anomalous domain or password in query");
+            return makeError("Anomalous domain or password in query", 400, TempMailErrorCodes.BAD_QUERY_STRING);
         }
         
         if(!data.bananacrumbs_token || !data.bananacrumbs_id) {
-            return makeError("No BananaCrumbs ID/Token provided for this method.  You can create one at https://passport.bananacrumbs.us");
+            return makeError("No BananaCrumbs ID/Token provided for this method.  You can create one at https://passport.bananacrumbs.us", 400, TempMailErrorCodes.NO_AUTH);
         }
         
         const emails = await EmailStorage.checkCustomUUIDInbox(password, domain, data.bananacrumbs_id, data.bananacrumbs_token);
         
         if(emails === "invalid_password") {
-            return makeError("Invalid password provided for domain.  If you recently set this record, wait several hours for your nameserver to update.", 403);
+            return makeError("Invalid password provided for domain.  If you recently set this record, wait several hours for your nameserver to update.",
+                403,
+                TempMailErrorCodes.INVALID_DOMAIN_PASSWORD);
         }
         
         if(!emails) {
-            return makeError("Invalid request.  Is the domain invalid?", 400);
+            return makeError("Invalid request.  Is the domain invalid?", 400, TempMailErrorCodes.GENERIC_ERROR);
         }
         
         return {
@@ -68,6 +71,7 @@ export default async function customEndpoint(data: HTTPEndpointParams): Promise<
             return {
                 body: JSON.stringify({
                     error: "Missing 'domain' field in JSON POST data",
+                    code: TempMailErrorCodes.MISSING_DOMAIN_NAME,
                 }),
                 status_code: 400,
             };
@@ -79,6 +83,7 @@ export default async function customEndpoint(data: HTTPEndpointParams): Promise<
             return {
                 body: JSON.stringify({
                     error: "Domain too long",
+                    code: TempMailErrorCodes.DOMAIN_TOO_LONG,
                 }),
                 status_code: 400,
             };
@@ -100,6 +105,7 @@ export default async function customEndpoint(data: HTTPEndpointParams): Promise<
         return {
             body: JSON.stringify({
                 error: "Invalid method",
+                code: TempMailErrorCodes.INVALID_DOMAIN_NAME,
             }),
             status_code: 400,
         };

@@ -16,10 +16,11 @@ import {PremiumTier} from "../../../../entity/PremiumTier";
 import validateWebhook from "../../../helper/validateWebhook";
 import RedisController from "../../../../db/RedisController";
 import makeError from "../../../helper/makeError";
+import {TempMailErrorCodes} from "../../../../static/TempMailErrorCodes";
 
 export default async function webhookEndpoint(data: HTTPEndpointParams): Promise<APIResponse> {
     if(!data.bananacrumbs_token || !data.bananacrumbs_id) {
-        return makeError("You must be logged in to interact with webhooks.");
+        return makeError("You must be logged in to interact with webhooks.", 403, TempMailErrorCodes.NO_AUTH);
     }
     
     if(data.method === "POST") {
@@ -27,15 +28,15 @@ export default async function webhookEndpoint(data: HTTPEndpointParams): Promise
             const json = JSON.parse(data.body);
             
             if(!json.url) {
-                return makeError("'url' parameter missing in POST request body");
+                return makeError("'url' parameter missing in POST request body", 400, TempMailErrorCodes.BAD_JSON_POST_DATA);
             }
             
             const v = validateWebhook(json.url);
             
             if(v === "too_long") {
-                return makeError("Webhook URL is too long (cannot exceed 256 characters).");
+                return makeError("Webhook URL is too long (cannot exceed 256 characters).", 400, TempMailErrorCodes.BAD_JSON_POST_DATA);
             } else if(v === "invalid") {
-                return makeError("Invalid webhook URL.");
+                return makeError("Invalid webhook URL.", 400, TempMailErrorCodes.BAD_JSON_POST_DATA);
             }
             
             await RedisController.instance.setIDWebhook(data.bananacrumbs_id, json.url);
@@ -46,7 +47,7 @@ export default async function webhookEndpoint(data: HTTPEndpointParams): Promise
             };
         }
         
-        return makeError("You must have TempMail Ultra to set webhooks on your account.");
+        return makeError("You must have TempMail Ultra to set webhooks on your account.", 400, TempMailErrorCodes.NO_AUTH);
     } else if(data.method === "DELETE") {
         //do not check auth when deleting, so users who no longer have TMU can
         //still delete the webhooks which are attached to their accounts
@@ -57,6 +58,6 @@ export default async function webhookEndpoint(data: HTTPEndpointParams): Promise
             status_code: 204,
         };
     } else {
-        return makeError("Invalid method", 400);
+        return makeError("Invalid method", 400, TempMailErrorCodes.INVALID_METHOD);
     }
 }

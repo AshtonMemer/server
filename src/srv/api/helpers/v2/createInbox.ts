@@ -14,6 +14,7 @@
 import {APIResponse} from "../../../../struct/api_data/v2/APIResponse";
 import {HTTPEndpointParams} from "../../../../struct/api_data/v2/HTTPEndpointParams";
 import EmailStorage from "../../../../util/EmailStorage";
+import {TempMailErrorCodes} from "../../../../static/TempMailErrorCodes";
 
 /**
  * Create a new temporary email inbox
@@ -38,6 +39,13 @@ export default async function createInbox(data: HTTPEndpointParams): Promise<API
             domain = EmailStorage.getRandomCommunityDomain();
         }
         
+        json.prefix = (json.prefix || "!").toString().toLowerCase();
+        
+        //if the prefix is invalid, set it to undefined to be made random
+        if(!json.prefix.match(/^[0-9a-z]{0,12}$/)) {
+            json.prefix = undefined;
+        }
+        
         //create an email address with the specified parameters
         const address = EmailStorage.generateAddress(domain || json.domain,
             data.premium_tier,
@@ -58,7 +66,8 @@ export default async function createInbox(data: HTTPEndpointParams): Promise<API
         return {
             status_code: 400,
             body: JSON.stringify({
-                error: `TempMail.TV Endpoint Error: ${e}.  Did you provide a valid domain name?`,
+                error: `BananaCrumbs.US TempMail Endpoint ${e}.  Did you provide a valid domain name?`,
+                code: TempMailErrorCodes.INVALID_DOMAIN_NAME,
             }),
         }
     }

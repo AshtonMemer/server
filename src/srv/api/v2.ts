@@ -14,12 +14,14 @@
 import {IncomingMessage, ServerResponse} from "http";
 import {PremiumTier} from "../../entity/PremiumTier";
 import RegisteredEndpoints from "./helpers/RegisteredEndpoints";
+import {TempMailErrorCodes} from "../../static/TempMailErrorCodes";
 
 export default async function v2(req: IncomingMessage, res: ServerResponse, ip: string, account_id: string | undefined, account_token: string | undefined, premiumTier: PremiumTier): Promise<any> {
     try {
         console.log(req.method + " " + req.url);
         res.setHeader("Content-Type", "application/json");
         
+        // @ts-ignore
         const url_noquery = req.url?.split("?")[0];
         let query: URLSearchParams | undefined = undefined
         
@@ -28,6 +30,7 @@ export default async function v2(req: IncomingMessage, res: ServerResponse, ip: 
             const u = new URL("https://api.tempmail.lol" + req.url);
             req.url = u.pathname;
             
+            // @ts-ignore
             query = u.searchParams;
             
             console.log("Query: " + u.search);
@@ -63,6 +66,7 @@ export default async function v2(req: IncomingMessage, res: ServerResponse, ip: 
             res.writeHead(400);
             res.end(JSON.stringify({
                 error: "Invalid JSON data provided for POST request",
+                code: TempMailErrorCodes.BAD_JSON_POST_DATA,
             }))
         }
         
@@ -71,6 +75,8 @@ export default async function v2(req: IncomingMessage, res: ServerResponse, ip: 
             return endpoint.path === url_noquery;
         });
         
+        //supposed to be "=== undefined"
+        //don't want to check for empty-ish values
         if(endpoint === undefined) {
             res.writeHead(404);
             res.end(JSON.stringify({

@@ -16,6 +16,7 @@ import RateLimitUtil from "../../../../util/RateLimitUtil";
 import {readFileSync} from "fs";
 import Config from "../../../../Config";
 import makeError from "../../../helper/makeError";
+import {TempMailErrorCodes} from "../../../../static/TempMailErrorCodes";
 
 export default async function communityEndpoint(data: HTTPEndpointParams): Promise<APIResponse> {
     
@@ -23,6 +24,7 @@ export default async function communityEndpoint(data: HTTPEndpointParams): Promi
         return {
             body: JSON.stringify({
                 error: "Invalid method (only POST accepted on this path)",
+                code: TempMailErrorCodes.INVALID_METHOD,
             }),
             status_code: 400,
         };
@@ -31,22 +33,22 @@ export default async function communityEndpoint(data: HTTPEndpointParams): Promi
     const json = JSON.parse(data.method);
     
     if(!json.domain) {
-        return makeError("'domain' field missing from JSON POST parameters");
+        return makeError("'domain' field missing from JSON POST parameters", 400, TempMailErrorCodes.BAD_JSON_POST_DATA);
     }
     
     const domain = json.domain;
     
     if(!domain || domain.length === 0 || domain.length > 64) {
-        return makeError("Domain is an invalid length (cannot be more than 64 characters)");
+        return makeError("Domain is an invalid length (cannot be more than 64 characters)", 400, TempMailErrorCodes.BAD_JSON_POST_DATA);
     }
     
     // @ts-ignore
     if(RateLimitUtil.checkRateLimitPubDomain(ip || "")) {
-        return makeError("Rate Limited", 429);
+        return makeError("Rate Limited", 429, TempMailErrorCodes.RATE_LIMITED);
     }
     
     if(!domain.match(/^(?!.*\.\.)[\w.\-]+(\.[a-zA-Z]{2,16})+(\/[\w.?%#&=\/\-]*)?$/)) {
-        return makeError("Invalid domain", 400);
+        return makeError("Invalid domain", 400, TempMailErrorCodes.BAD_JSON_POST_DATA);
     }
     
     try {
@@ -58,7 +60,7 @@ export default async function communityEndpoint(data: HTTPEndpointParams): Promi
             const b: string = bw.banned_words[i];
             if(domain.includes(b)) {
                 console.log(`Domain ${domain} violates verification.`);
-                return makeError("Domain contains banned word (trademark infringement).", 400);
+                return makeError("Domain contains banned word (trademark infringement).", 400, TempMailErrorCodes.BAD_JSON_POST_DATA);
             }
         }
         
