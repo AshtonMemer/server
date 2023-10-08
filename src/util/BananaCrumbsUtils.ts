@@ -48,7 +48,7 @@ export default class BananaCrumbsUtils {
         //no tests need to be done on the BCID since it has already been checked
         //before it was entered into the database
         
-        const url = `https://passport.bananacrumbs.us/tempmail_ultra_login?id=${id}&subcode=${this.subcode}`;
+        const url = `https://passport.bananacrumbs.us/login?id=${id}&subcode=${this.subcode}`;
         
         //check cache for ID hit
         if(this.tmu_cache.includes(id)) {
@@ -56,12 +56,11 @@ export default class BananaCrumbsUtils {
         }
         
         try {
-            const res = await fetch(url, {
+            const res = await (await fetch(url, {
                 method: "GET",
-            });
+            })).text();
             
-            //200 on success, 400+ on fail
-            if(res.ok) {
+            if(JSON.parse(res).tempmail_ultra_until > Date.now()) {
                 this.tmu_cache.push(id);
                 return true;
             }
