@@ -126,7 +126,6 @@ export default class BananaCrumbsUtils {
             ultra = json?.tempmail_ultra_until > Date.now();
             
             if(!plus && !ultra) {
-                console.log(`expired!`)
                 return "expired";
             }
             
