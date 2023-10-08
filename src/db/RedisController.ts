@@ -17,6 +17,13 @@ import {DeleteCustomWebhookRedisResponseType} from "../entity/DeleteCustomWebhoo
 import domainRegex from "../static/domainRegex";
 import {createHash} from "crypto";
 
+//"Nooooo you need to switch to CommonJS!!!1"
+//Only thing keeping me from switching to Java is finding a decent HTTP server
+// import pkg from "sqlite3";
+// const {Database} = pkg;
+
+//i'll switch to sqlite3 in a different version
+
 export default class RedisController {
     
     //redis instance
@@ -175,7 +182,7 @@ export default class RedisController {
         if(!token.match(/[A-Za-z0-9_-]+/))
             return undefined;
         const raw = await this.client.GET("exp-inbox-" + token);
-        
+        console.log(`raw: ${raw}`);
         if(!raw) return undefined;
         
         return JSON.parse(raw);
@@ -213,18 +220,23 @@ export default class RedisController {
         //tokens marked for deletion which have expired
         let marked_for_deletion: string[] = [];
         
-        keys.forEach((key) => {
-            const data: StoredInbox = JSON.parse(key);
+        for(const key of keys) {
+            
+            const kv = await this.client.GET(key);
+            
+            if(!kv) continue;
+            
+            const data: StoredInbox = JSON.parse(kv);
             if(data.expires <= Date.now()) {
                 marked_for_deletion.push(data.token);
-                return;
+                continue;
             }
             
             //clear timers: emails expire after 10 minutes since last access time
             if(data.last_access_time + 600000 <= Date.now()) {
                 marked_for_deletion.push(data.token);
             }
-        });
+        }
         
         marked_for_deletion.forEach((token) => {
             this.deleteInbox(token);

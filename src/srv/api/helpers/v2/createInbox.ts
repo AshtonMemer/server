@@ -15,6 +15,7 @@ import {APIResponse} from "../../../../struct/api_data/v2/APIResponse";
 import {HTTPEndpointParams} from "../../../../struct/api_data/v2/HTTPEndpointParams";
 import EmailStorage from "../../../../util/EmailStorage";
 import {TempMailErrorCodes} from "../../../../static/TempMailErrorCodes";
+import RateLimitUtil from "../../../../util/RateLimitUtil";
 
 /**
  * Create a new temporary email inbox
@@ -31,6 +32,15 @@ import {TempMailErrorCodes} from "../../../../static/TempMailErrorCodes";
  */
 export default async function createInbox(data: HTTPEndpointParams): Promise<APIResponse> {
     try {
+        const b = RateLimitUtil.checkRateLimitGenerate(data.ip, data.bananacrumbs_id, data.premium_tier);
+        
+        if(b) {
+            return {
+                body: `Rate limited: ${data.premium_tier}`,
+                status_code: 429,
+            };
+        }
+        
         const json = JSON.parse(data.body);
         
         let domain: string | undefined;

@@ -77,7 +77,7 @@ export default async function inboxEndpoint(data: HTTPEndpointParams): Promise<A
         } else {
             return {
                 body: JSON.stringify({
-                    error: "Method Not Allowed",
+                    error: "Method Not Allowed (POST /inbox/create to create an inbox: https://github.com/tempmail-lol/server/wiki/v2-API-Endpoints)",
                     code: TempMailErrorCodes.INVALID_METHOD,
                 }),
                 status_code: 405,
