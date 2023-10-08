@@ -162,7 +162,7 @@ export default async function v1(req: IncomingMessage, res: ServerResponse, ip: 
             res.writeHead(200);
             return res.end(JSON.stringify({
                 emails_received: r,
-                clients_connected: 0,
+                clients_connected: RedisController.connected,
             }));
         });
     } else if(req.url.startsWith("/custom/")) {
