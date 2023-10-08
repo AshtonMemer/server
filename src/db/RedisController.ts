@@ -352,6 +352,28 @@ export default class RedisController {
         
         return true;
     }
+    
+    /**
+     * Set the last access time for an inbox
+     * @param token {string}
+     */
+    public async setLastAccessTime(token: string): Promise<void> {
+        const inbox = await this.getInbox(token);
+        
+        if(!inbox) return;
+        
+        inbox.last_access_time = Date.now();
+        
+        await this.storeInbox(inbox);
+    }
+    
+    public async getLastAccessTime(token: string): Promise<number | undefined> {
+        const inbox = await this.getInbox(token);
+        
+        if(!inbox) return undefined;
+        
+        return inbox.last_access_time;
+    }
 }
 
 //timer to set the connected inboxes

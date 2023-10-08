@@ -141,6 +141,21 @@ export default async function v1(req: IncomingMessage, res: ServerResponse, ip: 
         }));
     } else if(req.url.startsWith("/auth/")) {
         const token = req.url.substring("/auth/".length);
+        
+        //if the inbox has been accessed in the last 1 second
+        //this was implemented after v2 released, but I wanted to make sure it got applied here as well.
+        //some users feel the need to ping my server several thousand times per second checking for emails,
+        //so I'm going to enforce a limit here so you can only check ONCE PER SECOND.  That is completely
+        //reasonable, and if you're reading this, please stop making my server slower :)
+        const last = (await RedisController.instance.getLastAccessTime(token)) || 0;
+        
+        if(Math.abs(last - Date.now()) < 1000) {
+            res.writeHead(429);
+            return res.end(JSON.stringify({
+                error: "rate limited",
+            }));
+        }
+        
         const emails = await EmailStorage.getInbox(token);
         
         res.writeHead(200, {

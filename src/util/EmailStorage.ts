@@ -117,6 +117,7 @@ export default class EmailStorage {
         
         if((await (RedisController.instance.getInbox(token)))?.address) {
             exists = true;
+            await RedisController.instance.setLastAccessTime(token);
         }
         
         //existing addresses may not be in the received_emails map.
