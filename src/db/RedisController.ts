@@ -182,7 +182,7 @@ export default class RedisController {
         if(!token.match(/[A-Za-z0-9_-]+/))
             return undefined;
         const raw = await this.client.GET("exp-inbox-" + token);
-        console.log(`raw: ${raw}`);
+        
         if(!raw) return undefined;
         
         return JSON.parse(raw);
@@ -194,10 +194,14 @@ export default class RedisController {
      * @returns {StoredInbox | undefined} the inbox or undefined if it does not exist
      */
     public async getInboxByAddress(address: string): Promise<StoredInbox | undefined> {
-        const all_addresses = await this.client.KEYS("exp-inbox-*");
+        const keys = await this.client.KEYS("exp-inbox-*");
         
-        for(let i = 0; i < all_addresses.length; i++){
-            const raw = all_addresses[i] as string;
+        for (const key of keys) {
+            const kv = await this.client.GET(key);
+            
+            if(!kv) continue;
+            
+            const raw = kv as string;
             const stored_inbox: StoredInbox = JSON.parse(raw);
             
             if(stored_inbox.address === address) {

@@ -20,7 +20,7 @@ export default async function verifyCustomDomainOwner(id: string, domain: string
     //this helps avoid tempmail detection by using a random domain value
     const hash = createHash("SHA512").update(id + (domain_random).repeat(2) + domain);
     
-    const value = hash.digest("hex").substring(16);
+    const value = hash.digest("hex").substring(0, 60);
     
     try {
         

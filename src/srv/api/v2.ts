@@ -18,7 +18,6 @@ import {TempMailErrorCodes} from "../../static/TempMailErrorCodes";
 
 export default async function v2(req: IncomingMessage, res: ServerResponse, ip: string, account_id: string | undefined, account_token: string | undefined, premiumTier: PremiumTier): Promise<any> {
     try {
-        console.log(req.method + " " + req.url);
         res.setHeader("Content-Type", "application/json");
         
         // @ts-ignore
@@ -32,9 +31,6 @@ export default async function v2(req: IncomingMessage, res: ServerResponse, ip: 
             
             // @ts-ignore
             query = u.searchParams;
-            
-            console.log("Query: " + u.search);
-            console.log("Path: " + u.pathname)
         }
         
         let body: string = "";

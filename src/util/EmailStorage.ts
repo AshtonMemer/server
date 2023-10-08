@@ -44,6 +44,7 @@ export default class EmailStorage {
             prefix = undefined;
         }
         
+        
         //if the domain does not exist
         if(!Config.EMAIL_DOMAINS.includes(domain)) {
             if(!Config.COMMUNITY_DOMAINS.includes(domain)) {

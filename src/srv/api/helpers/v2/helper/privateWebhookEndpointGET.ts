@@ -31,7 +31,7 @@ export default async function privateWebhookEndpointGET(data: HTTPEndpointParams
     
     const hash = createHash("SHA512").update(data.bananacrumbs_id + (domain_random).repeat(2) + domain);
     
-    const value = hash.digest("hex").substring(16);
+    const value = hash.digest("hex").substring(0, 60);
     
     return {
         body: JSON.stringify({
@@ -40,4 +40,4 @@ export default async function privateWebhookEndpointGET(data: HTTPEndpointParams
         } as PrivateWebhookResponseType),
         status_code: 200,
     };
-}
+}//

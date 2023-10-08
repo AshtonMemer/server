@@ -30,7 +30,7 @@ export default async function communityEndpoint(data: HTTPEndpointParams): Promi
         };
     }
     
-    const json = JSON.parse(data.method);
+    const json = JSON.parse(data.body);
     
     if(!json.domain) {
         return makeError("'domain' field missing from JSON POST parameters", 400, TempMailErrorCodes.BAD_JSON_POST_DATA);
