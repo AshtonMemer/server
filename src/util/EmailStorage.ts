@@ -94,7 +94,7 @@ export default class EmailStorage {
                 address: inbox.address,
                 expires: inbox.expiration,
                 token: inbox.token,
-                last_access_time: 0,
+                last_access_time: Date.now(),
             };
             
             await RedisController.instance.storeInbox(stored_inbox);
