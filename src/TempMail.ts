@@ -19,6 +19,11 @@ import EmailStorage from "./util/EmailStorage";
 import HTTPServer from "./srv/HTTPServer";
 import Email from "./entity/Email";
 import registerv2Endpoints from "./srv/api/helpers/registerv2Endpoints";
+import Logger from "./util/Logger";
+
+Logger.log("Starting a Temporary Email Server");
+Logger.log("This is proprietary software owned by BananaCrumbs LLC");
+Logger.log("You are, under no circumstances, allowed to redistribute, resell, or otherwise distribute this software without explicit permission from BananaCrumbs LLC");
 
 //pipe emails from the email server to the email storage
 new EmailServer(Config.MAIL_PORT, (email: Email[]) => {
@@ -33,8 +38,12 @@ new EmailServer(Config.MAIL_PORT, (email: Email[]) => {
     });
 });
 
+Logger.log("Starting an HTTP Server...");
 //start the http server
 const http_server = new HTTPServer(Config.HTTP_PORT);
 http_server.start();
+Logger.log("HTTP Server started on port " + Config.HTTP_PORT);
 
+Logger.log("Registering v2 endpoints...");
 registerv2Endpoints();
+Logger.log("Registered v2 endpoints successfully");

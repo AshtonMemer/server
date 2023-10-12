@@ -19,15 +19,16 @@ import {createHash} from "crypto";
 
 //"Nooooo you need to switch to CommonJS!!!1"
 //Only thing keeping me from switching to Java is finding a decent HTTP server
-// import pkg from "sqlite3";
-// const {Database} = pkg;
-
-//i'll switch to sqlite3 in a different version
+import pkg from "sqlite3";
+import {PremiumTier} from "../entity/PremiumTier";
+import Logger from "../util/Logger";
+const {Database} = pkg;
 
 export default class RedisController {
     
     //redis instance
     private client = createClient();
+    private db = new Database("./tempmail.tv.db");
     
     //redis controller instance
     public static readonly instance = new RedisController();
@@ -156,7 +157,18 @@ export default class RedisController {
      * @returns {void}
      */
     public async storeInbox(inbox: StoredInbox): Promise<void> {
-        await this.client.SET("exp-inbox-" + inbox.token, JSON.stringify(inbox));
+        // await this.client.SET("exp-inbox-" + inbox.token, JSON.stringify(inbox));
+        return new Promise((resolve, reject) => {
+            const stmt = this.db.prepare(`INSERT INTO inbox (premium, webhook, address, expires, token, last_access_time) VALUES (?, ?, ?, ?, ?, ?)`);
+            stmt.run(inbox.premium, inbox.webhook, inbox.address, inbox.expires, inbox.token, inbox.last_access_time, (err: Error) => {
+                if (err) {
+                    reject(err);
+                } else {
+                    resolve();
+                }
+            });
+            stmt.finalize();
+        });
     }
     
     /**
@@ -168,9 +180,17 @@ export default class RedisController {
         if(!token.match(/[A-Za-z0-9_-]+/))
             return false;
         
-        await this.client.DEL("exp-inbox-" + token);
-        
-        return true;
+        return new Promise((resolve, reject) => {
+            const stmt = this.db.prepare(`DELETE FROM inbox WHERE token = ?`);
+            stmt.run(token, (err) => {
+                if (err) {
+                    reject(err);
+                } else {
+                    resolve(true);
+                }
+            });
+            stmt.finalize();
+        });
     }
     
     /**
@@ -179,13 +199,26 @@ export default class RedisController {
      * @returns {StoredInbox | undefined} the inbox, or undefined if there was no inbox
      */
     public async getInbox(token: string): Promise<StoredInbox | undefined> {
-        if(!token.match(/[A-Za-z0-9_-]+/))
-            return undefined;
-        const raw = await this.client.GET("exp-inbox-" + token);
-        
-        if(!raw) return undefined;
-        
-        return JSON.parse(raw);
+        return new Promise((resolve, reject) => {
+            this.db.get(`SELECT * FROM inbox WHERE token = ?`, [token], (err, row: any) => {
+                if (err) {
+                    reject(err);
+                } else if (row) {
+                    resolve({
+                        premium: row.premium as PremiumTier,
+                        webhook: row.webhook,
+                        address: row.address,
+                        expires: row.expires,
+                        token: row.token,
+                        last_access_time: -1, //legacy
+                    });
+                    
+                    Logger.log(`An email address ${row.address} has accessed his/her data (premium: ${row.premium}, has webhook: ${!!row.webhook})`);
+                } else {
+                    resolve(undefined);
+                }
+            });
+        });
     }
     
     /**
@@ -194,78 +227,70 @@ export default class RedisController {
      * @returns {StoredInbox | undefined} the inbox or undefined if it does not exist
      */
     public async getInboxByAddress(address: string): Promise<StoredInbox | undefined> {
-        const keys = await this.client.KEYS("exp-inbox-*");
-        
-        for (const key of keys) {
-            const kv = await this.client.GET(key);
-            
-            if(!kv) continue;
-            
-            const raw = kv as string;
-            const stored_inbox: StoredInbox = JSON.parse(raw);
-            
-            if(stored_inbox.address === address) {
-                return stored_inbox;
-            }
-        }
-        
-        return undefined;
+        console.log(`getting inbox by address`)
+        return new Promise((resolve, reject) => {
+            this.db.get(`SELECT * FROM inbox WHERE address = ?`, [address], (err, row: any) => {
+                if (err) {
+                    reject(err);
+                } else if (row) {
+                    resolve({
+                        premium: row.premium,
+                        webhook: row.webhook,
+                        address: row.address,
+                        expires: row.expires,
+                        token: row.token,
+                        last_access_time: -1, //legacy
+                    });
+                    
+                    Logger.log(`An email address ${row.address} has accessed his/her data (premium: ${row.premium}, has webhook: ${!!row.webhook})`);
+                } else {
+                    resolve(undefined);
+                }
+            });
+        });
     }
     
     /**
      * Clear timer.
      * This deletes all inboxes which are older than their expiration time.
      * 
-     * @returns {string[]} addresses which were deleted
+     * @returns {void}
      */
-    public async clearTimer(): Promise<string[]> {
-        const keys = await this.client.KEYS("exp-inbox-*");
-        
-        //tokens marked for deletion which have expired
-        let marked_for_deletion: string[] = [];
-        
-        for(const key of keys) {
+    public async clearTimer(): Promise<void> {
+        return new Promise((resolve, reject) => {
             
-            const kv = await this.client.GET(key);
+            const stmt = this.db.prepare(`
+                DELETE FROM inbox
+                WHERE expires < ?
+            `);
             
-            if(!kv) continue;
+            stmt.run(Date.now(), (err) => {
+                if (err) {
+                    reject(err);
+                } else {
+                    resolve();
+                }
+            });
             
-            const data: StoredInbox = JSON.parse(kv);
-            if(data.expires <= Date.now()) {
-                marked_for_deletion.push(data.token);
-                continue;
-            }
+            stmt.finalize();
             
-            //clear timers: emails expire after 10 minutes since last access time
-            if(data.last_access_time + 600000 <= Date.now()) {
-                marked_for_deletion.push(data.token);
-            }
-        }
-        
-        marked_for_deletion.forEach((token) => {
-            this.deleteInbox(token);
+            Logger.log(`Cleared old inboxes`);
         });
-        
-        return marked_for_deletion;
     }
     
     /**
      * Get the number of active inboxes
      */
     public async getConnected(): Promise<number> {
-        return (await this.client.KEYS("exp-inbox-*")).length;
-    }
-    
-    /**
-     * Get the cached amount of connected users.
-     * 
-     * Since this may be an expensive operation,
-     * this value is stored in this program's memory,
-     * so it is not cycling through every time someone
-     * requests for the website stats.
-     */
-    public getConnectedCached(): number {
-        return RedisController.connected;
+        return new Promise((resolve, reject) => {
+            this.db.get(`SELECT COUNT(*) as count FROM inbox`, (err, row: any) => {
+                if (err) {
+                    reject(err);
+                } else {
+                    resolve(row.count);
+                }
+            });
+        });
     }
     
     /**
@@ -299,37 +324,21 @@ export default class RedisController {
         const record = await this.client.GET("exp-domain-" + hash);
         
         if(!record) {
+            Logger.warn(`Attempted to delete custom domain webhook for ${domain} (BananaCrumbs ID: ${bananacrumbs_id}), but the record did not exist`);
             return DeleteCustomWebhookRedisResponseType.DID_NOT_EXIST;
         }
         
         if(record !== bananacrumbs_id) {
+            Logger.warn(`Attempted to delete custom domain webhook for ${domain} (BananaCrumbs ID: ${bananacrumbs_id}), but the record was owned by ${record}`);
             return DeleteCustomWebhookRedisResponseType.INVALID_BANANACRUMBS_ID;
         }
         
         await this.client.DEL("exp-domain-" + hash);
         await this.client.DECR("exp-custom-domain-webhooks-" + bananacrumbs_id);
         
+        Logger.log(`Deleted custom domain webhook for ${domain} (BananaCrumbs ID: ${bananacrumbs_id})`);
+        
         return DeleteCustomWebhookRedisResponseType.SUCCESS;
-    }
-    
-    /**
-     * Get the amount of webhooks a user has on his/her account.
-     * 
-     * @param bananacrumbs_id {string} the BananaCrumbs ID of the user
-     * @returns {number | false} the number, or false if it is not in the database
-     */
-    public async getCustomDomainWebhookCount(bananacrumbs_id: string): Promise<number | false> {
-        if(!bananacrumbs_id.match(/[0-9]{24}/)) {
-            return false;
-        }
-        
-        const whs = await this.client.GET("exp-custom-domain-webhooks-" + bananacrumbs_id);
-        
-        if(!whs) {
-            return false;
-        }
-        
-        return Number(whs);
     }
     
     /**
@@ -350,29 +359,23 @@ export default class RedisController {
         await this.client.SET("exp-domain-" + hash, bananacrumbs_id);
         await this.client.INCR("exp-custom-domain-webhooks-" + bananacrumbs_id);
         
+        Logger.log(`Set custom domain webhook for ${domain} (BananaCrumbs ID: ${bananacrumbs_id})`);
         return true;
     }
     
-    /**
-     * Set the last access time for an inbox
-     * @param token {string}
-     */
-    public async setLastAccessTime(token: string): Promise<void> {
-        const inbox = await this.getInbox(token);
+    public initializeDatabase() {
+        this.db.serialize(() => {
+            this.db.run(`CREATE TABLE IF NOT EXISTS inbox (
+                premium TEXT NOT NULL,
+                webhook TEXT,
+                address TEXT NOT NULL,
+                expires INTEGER NOT NULL,
+                token TEXT PRIMARY KEY NOT NULL,
+                last_access_time INTEGER NOT NULL
+            )`);
+        });
         
-        if(!inbox) return;
-        
-        inbox.last_access_time = Date.now();
-        
-        await this.storeInbox(inbox);
-    }
-    
-    public async getLastAccessTime(token: string): Promise<number | undefined> {
-        const inbox = await this.getInbox(token);
-        
-        if(!inbox) return undefined;
-        
-        return inbox.last_access_time;
+        Logger.log(`Initialized database`);
     }
 }
 
@@ -387,3 +390,5 @@ setInterval(async () => {
 setInterval(async () => {
     await RedisController.instance.clearTimer();
 }, 30000);
+
+RedisController.instance.initializeDatabase();

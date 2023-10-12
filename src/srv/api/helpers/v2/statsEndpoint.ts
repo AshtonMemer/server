@@ -23,7 +23,7 @@ type StatsResponse = {
 export default async function statsEndpoint(_data: HTTPEndpointParams): Promise<APIResponse> {
     const res: StatsResponse = {
         emails_received: await RedisController.instance.getStats(),
-        clients_connected: RedisController.instance.getConnectedCached(),
+        clients_connected: await RedisController.instance.getConnected(),
     };
     
     return {

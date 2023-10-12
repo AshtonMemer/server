@@ -16,7 +16,9 @@
     "smtp-server": "^3.11.0",
     "sqlite3": "^5.1.6",
     "super-regex": "^0.2.0",
-    "tslib": "^2.4.0"
+    "tslib": "^2.4.0",
+    "winston": "^3.11.0",
+    "winston-daily-rotate-file": "^4.7.1"
   },
   "devDependencies": {
     "@types/mailparser": "^3.4.0",

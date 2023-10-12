@@ -9,3 +9,5 @@ yarn.lock
 
 domains.json
 src/secrets.json
+
+*.db

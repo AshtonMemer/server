@@ -88,7 +88,7 @@ export default class EmailServer {
             
             //if sender/rcpt are not set
             if(!sender || !rcpt) {
-                return callback(new Error("Invalid envelope (nullish sender or rcpt)"));
+                return callback(new Error("Invalid envelope (nullish sender/rcpt)"));
             }
             
             //create a new email and send it to the listener

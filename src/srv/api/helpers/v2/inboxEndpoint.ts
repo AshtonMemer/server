@@ -16,8 +16,6 @@ import {HTTPEndpointParams} from "../../../../struct/api_data/v2/HTTPEndpointPar
 import EmailStorage from "../../../../util/EmailStorage";
 import Email from "../../../../entity/Email";
 import {TempMailErrorCodes} from "../../../../static/TempMailErrorCodes";
-import RedisController from "../../../../db/RedisController";
-import makeError from "../../../helper/makeError";
 
 type EmailResponseType = {
     emails: Email[],
@@ -53,18 +51,6 @@ export default async function inboxEndpoint(data: HTTPEndpointParams): Promise<A
         
         //get emails from an inbox
         if(data.method === "GET") {
-            
-            //if the inbox has been accessed in the last 1 second
-            //this was implemented after v2 released, but I wanted to make sure it got applied here as well.
-            //some users feel the need to ping my server several thousand times per second checking for emails,
-            //so I'm going to enforce a limit here so you can only check ONCE PER SECOND.  That is completely
-            //reasonable, and if you're reading this, please stop making my server slower :)
-            const last = (await RedisController.instance.getLastAccessTime(token)) || 0;
-            
-            if(Math.abs(last - Date.now()) < 1000) {
-                return makeError("Rate limited", 429, TempMailErrorCodes.RATE_LIMITED);
-            }
-            
             const emails = await EmailStorage.getInbox(token);
             
             //expired inbox
@@ -100,10 +86,10 @@ export default async function inboxEndpoint(data: HTTPEndpointParams): Promise<A
     } catch(e) {
         return {
             body: JSON.stringify({
-                error: "Bad Request",
+                error: "Internal Server Error: " + e,
                 code: TempMailErrorCodes.GENERIC_ERROR,
             }),
-            status_code: 400,
+            status_code: 500,
         }
     }
 }

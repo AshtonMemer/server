@@ -17,6 +17,7 @@ import EmailStorage from "../../util/EmailStorage";
 import RedisController from "../../db/RedisController";
 import {PremiumTier} from "../../entity/PremiumTier";
 import {IncomingMessage, ServerResponse} from "http";
+import Logger from "../../util/Logger";
 
 /**
  * THIS IS AN OLD VERSION OF THE TEMPMAIL API.       /
@@ -80,15 +81,15 @@ export default async function v1(req: IncomingMessage, res: ServerResponse, ip: 
             for(let i = 0; i < bw.banned_words.length; i++){
                 const b: string = bw.banned_words[i];
                 if(domain.includes(b)) {
-                    console.log(`Domain ${domain} violates verification.`);
+                    Logger.warn(`Domain ${domain} violates verification.`)
                     res.writeHead(200);
                     return res.end("ok");
                 }
             }
             
         } catch(e) {
-            console.error(`Error reading banned words`);
-            console.error(e);
+            Logger.error("Failed to read banned words file")
+            Logger.error(JSON.stringify(e));
         }
         
         Config.checking_domains.push(domain);
@@ -100,6 +101,8 @@ export default async function v1(req: IncomingMessage, res: ServerResponse, ip: 
         
         try {
             const address = EmailStorage.generateAddress(domain, premiumTier, account_id, account_token);
+            
+            Logger.log(`Generated address ${address.address} for ${domain}`);
             
             res.writeHead(201, {
                 "Content-Type": "application/json",
@@ -120,6 +123,8 @@ export default async function v1(req: IncomingMessage, res: ServerResponse, ip: 
     } else if(req.url === "/generate") {
         const address = EmailStorage.generateAddress(undefined, premiumTier, account_id, account_token);
         
+        Logger.log(`Generated address ${address.address}`);
+        
         res.writeHead(201, {
             "Content-Type": "application/json",
         });
@@ -130,6 +135,8 @@ export default async function v1(req: IncomingMessage, res: ServerResponse, ip: 
         }));
     } else if(req.url === "/generate/rush") {
         const address = EmailStorage.generateAddress(EmailStorage.getRandomCommunityDomain(), premiumTier, account_id, account_token);
+        
+        Logger.log(`Generated address ${address.address} (rush)`);
         
         res.writeHead(201, {
             "Content-Type": "application/json",
@@ -142,21 +149,8 @@ export default async function v1(req: IncomingMessage, res: ServerResponse, ip: 
     } else if(req.url.startsWith("/auth/")) {
         const token = req.url.substring("/auth/".length);
         
-        //if the inbox has been accessed in the last 1 second
-        //this was implemented after v2 released, but I wanted to make sure it got applied here as well.
-        //some users feel the need to ping my server several thousand times per second checking for emails,
-        //so I'm going to enforce a limit here so you can only check ONCE PER SECOND.  That is completely
-        //reasonable, and if you're reading this, please stop making my server slower :)
-        const last = (await RedisController.instance.getLastAccessTime(token)) || 0;
-        
-        if(Math.abs(last - Date.now()) < 1000) {
-            res.writeHead(429);
-            return res.end(JSON.stringify({
-                error: "rate limited",
-            }));
-        }
-        
         const emails = await EmailStorage.getInbox(token);
+        
         
         res.writeHead(200, {
             "Content-Type": "application/json",
@@ -168,6 +162,9 @@ export default async function v1(req: IncomingMessage, res: ServerResponse, ip: 
                 token: "invalid",
             }));
         } else {
+            
+            emails.length !== 0 && Logger.log(`Got emails for ${(emails[0]?.to)} (${emails?.length} emails)`);
+            
             return res.end(JSON.stringify({
                 email: emails,
             }))

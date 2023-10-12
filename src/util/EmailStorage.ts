@@ -98,6 +98,8 @@ export default class EmailStorage {
                 last_access_time: Date.now(),
             };
             
+            console.log(`storing`);
+            
             await RedisController.instance.storeInbox(stored_inbox);
         })();
         
@@ -112,23 +114,25 @@ export default class EmailStorage {
      */
     public static async getInbox(token: string): Promise<Email[] | undefined> {
         const emails = this.received_emails.get(token);
-        
         let exists = false;
         
         if((await (RedisController.instance.getInbox(token)))?.address) {
             exists = true;
-            await RedisController.instance.setLastAccessTime(token);
+            // await RedisController.instance.setLastAccessTime(token);
         }
         
         //existing addresses may not be in the received_emails map.
         //This is because they are not stored there until an email is received.
         if(exists) {
             this.received_emails.delete(token);
-            if(!emails || emails.length === 0)
+            
+            if(!emails || emails.length === 0) {
                 return [];
-            else
+            } else {
                 return emails;
+            }
         } else {
+            console.log(`j`)
             return undefined;
         }
     }
