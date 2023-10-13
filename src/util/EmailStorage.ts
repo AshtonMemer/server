@@ -91,7 +91,7 @@ export default class EmailStorage {
             
             const stored_inbox: StoredInbox = {
                 premium,
-                webhook: webhook ? webhook : undefined,
+                webhook: webhook ? webhook : null,
                 address: inbox.address,
                 expires: inbox.expiration,
                 token: inbox.token,
@@ -132,7 +132,6 @@ export default class EmailStorage {
                 return emails;
             }
         } else {
-            console.log(`j`)
             return undefined;
         }
     }

@@ -11,13 +11,22 @@
  * OTHER DEALINGS IN THE SOFTWARE.
  */
 
-import {PremiumTier} from "./PremiumTier";
+import mongoose from "mongoose";
+import Logger from "../util/Logger";
 
-export type StoredInbox = {
-    premium: PremiumTier,
-    webhook: string | null,
-    address: string,
-    expires: number,
-    token: string,
-    last_access_time: number,
-};
+if(mongoose.connection.readyState !== 1) {
+    (async () => {
+        await mongoose.connect("mongodb://127.0.0.1:27017/tempmail");
+        Logger.log(`Ready state: ${mongoose.connection.readyState}`);
+    })();
+}
+
+const email = new mongoose.Schema({
+    premium: String,
+    webhook: String,
+    address: String,
+    expires: Number,
+    token: String,
+});
+
+export const Email = mongoose.model("Email", email);

@@ -16,19 +16,15 @@ import {StoredInbox} from "../entity/StoredInbox";
 import {DeleteCustomWebhookRedisResponseType} from "../entity/DeleteCustomWebhookRedisResponseType";
 import domainRegex from "../static/domainRegex";
 import {createHash} from "crypto";
+import {Email} from "./models";
 
-//"Nooooo you need to switch to CommonJS!!!1"
-//Only thing keeping me from switching to Java is finding a decent HTTP server
-import pkg from "sqlite3";
 import {PremiumTier} from "../entity/PremiumTier";
 import Logger from "../util/Logger";
-const {Database} = pkg;
 
 export default class RedisController {
     
     //redis instance
     private client = createClient();
-    private db = new Database("./tempmail.tv.db");
     
     //redis controller instance
     public static readonly instance = new RedisController();
@@ -158,39 +154,15 @@ export default class RedisController {
      */
     public async storeInbox(inbox: StoredInbox): Promise<void> {
         // await this.client.SET("exp-inbox-" + inbox.token, JSON.stringify(inbox));
-        return new Promise((resolve, reject) => {
-            const stmt = this.db.prepare(`INSERT INTO inbox (premium, webhook, address, expires, token, last_access_time) VALUES (?, ?, ?, ?, ?, ?)`);
-            stmt.run(inbox.premium, inbox.webhook, inbox.address, inbox.expires, inbox.token, inbox.last_access_time, (err: Error) => {
-                if (err) {
-                    reject(err);
-                } else {
-                    resolve();
-                }
-            });
-            stmt.finalize();
+        let email = new Email({
+            premium: inbox.premium,
+            webhook: inbox.webhook,
+            address: inbox.address,
+            expires: inbox.expires,
+            token: inbox.token,
         });
-    }
-    
-    /**
-     * Delete an inbox by its token
-     * @param token {string} the inbox token
-     * @returns {boolean} true if it was deleted, false if the token does not match
-     */
-    public async deleteInbox(token: string): Promise<boolean> {
-        if(!token.match(/[A-Za-z0-9_-]+/))
-            return false;
         
-        return new Promise((resolve, reject) => {
-            const stmt = this.db.prepare(`DELETE FROM inbox WHERE token = ?`);
-            stmt.run(token, (err) => {
-                if (err) {
-                    reject(err);
-                } else {
-                    resolve(true);
-                }
-            });
-            stmt.finalize();
-        });
+        await email.save();
     }
     
     /**
@@ -199,26 +171,38 @@ export default class RedisController {
      * @returns {StoredInbox | undefined} the inbox, or undefined if there was no inbox
      */
     public async getInbox(token: string): Promise<StoredInbox | undefined> {
-        return new Promise((resolve, reject) => {
-            this.db.get(`SELECT * FROM inbox WHERE token = ?`, [token], (err, row: any) => {
-                if (err) {
-                    reject(err);
-                } else if (row) {
-                    resolve({
-                        premium: row.premium as PremiumTier,
-                        webhook: row.webhook,
-                        address: row.address,
-                        expires: row.expires,
-                        token: row.token,
-                        last_access_time: -1, //legacy
-                    });
-                    
-                    Logger.log(`An email address ${row.address} has accessed his/her data (premium: ${row.premium}, has webhook: ${!!row.webhook})`);
-                } else {
-                    resolve(undefined);
-                }
-            });
-        });
+        const e = await Email.findOne({token: token});
+        
+        if(!e) {
+            return undefined;
+        }
+        
+        let pt: PremiumTier;
+        
+        //premium tier is stored as a string in the database
+        switch(e.premium) {
+            case "TempMail Plus":
+                pt = PremiumTier.TEMPMAIL_PLUS;
+                break;
+            case "TempMail Ultra":
+                pt = PremiumTier.TEMPMAIL_ULTRA;
+                break;
+            case "TempMail Enterprise":
+                pt = PremiumTier.TEMPMAIL_ENTERPRISE;
+                break;
+            default:
+                pt = PremiumTier.NONE;
+                break;
+        }
+        
+        return {
+            premium: pt,
+            webhook: e.webhook || null,
+            address: e.address || "",
+            expires: e.expires || 0,
+            token: e.token || "",
+            last_access_time: -1, //legacy
+        };
     }
     
     /**
@@ -226,28 +210,39 @@ export default class RedisController {
      * @param address {string} the inbox address
      * @returns {StoredInbox | undefined} the inbox or undefined if it does not exist
      */
-    public async getInboxByAddress(address: string): Promise<StoredInbox | undefined> {
-        console.log(`getting inbox by address`)
-        return new Promise((resolve, reject) => {
-            this.db.get(`SELECT * FROM inbox WHERE address = ?`, [address], (err, row: any) => {
-                if (err) {
-                    reject(err);
-                } else if (row) {
-                    resolve({
-                        premium: row.premium,
-                        webhook: row.webhook,
-                        address: row.address,
-                        expires: row.expires,
-                        token: row.token,
-                        last_access_time: -1, //legacy
-                    });
-                    
-                    Logger.log(`An email address ${row.address} has accessed his/her data (premium: ${row.premium}, has webhook: ${!!row.webhook})`);
-                } else {
-                    resolve(undefined);
-                }
-            });
-        });
+    public async getInboxByAddress(address: string): Promise<StoredInbox | null> {
+        const e = await Email.findOne({address: address});
+        
+        if(!e) {
+            return null;
+        }
+        
+        let pt: PremiumTier;
+        
+        //premium tier is stored as a string in the database
+        switch(e.premium) {
+            case "TempMail Plus":
+                pt = PremiumTier.TEMPMAIL_PLUS;
+                break;
+            case "TempMail Ultra":
+                pt = PremiumTier.TEMPMAIL_ULTRA;
+                break;
+            case "TempMail Enterprise":
+                pt = PremiumTier.TEMPMAIL_ENTERPRISE;
+                break;
+            default:
+                pt = PremiumTier.NONE;
+                break;
+        }
+        
+        return {
+            premium: pt,
+            webhook: e.webhook || null,
+            address: e.address || "",
+            expires: e.expires || 0,
+            token: e.token || "",
+            last_access_time: -1, //legacy
+        };
     }
     
     /**
@@ -257,40 +252,14 @@ export default class RedisController {
      * @returns {void}
      */
     public async clearTimer(): Promise<void> {
-        return new Promise((resolve, reject) => {
-            
-            const stmt = this.db.prepare(`
-                DELETE FROM inbox
-                WHERE expires < ?
-            `);
-            
-            stmt.run(Date.now(), (err) => {
-                if (err) {
-                    reject(err);
-                } else {
-                    resolve();
-                }
-            });
-            
-            stmt.finalize();
-            
-            Logger.log(`Cleared old inboxes`);
-        });
+        await Email.deleteMany({expires: {$lt: Date.now()}});
     }
     
     /**
      * Get the number of active inboxes
      */
     public async getConnected(): Promise<number> {
-        return new Promise((resolve, reject) => {
-            this.db.get(`SELECT COUNT(*) as count FROM inbox`, (err, row: any) => {
-                if (err) {
-                    reject(err);
-                } else {
-                    resolve(row.count);
-                }
-            });
-        });
+        return Email.countDocuments();
     }
     
     /**
@@ -362,21 +331,6 @@ export default class RedisController {
         Logger.log(`Set custom domain webhook for ${domain} (BananaCrumbs ID: ${bananacrumbs_id})`);
         return true;
     }
-    
-    public initializeDatabase() {
-        this.db.serialize(() => {
-            this.db.run(`CREATE TABLE IF NOT EXISTS inbox (
-                premium TEXT NOT NULL,
-                webhook TEXT,
-                address TEXT NOT NULL,
-                expires INTEGER NOT NULL,
-                token TEXT PRIMARY KEY NOT NULL,
-                last_access_time INTEGER NOT NULL
-            )`);
-        });
-        
-        Logger.log(`Initialized database`);
-    }
 }
 
 //timer to set the connected inboxes
@@ -390,5 +344,3 @@ setInterval(async () => {
 setInterval(async () => {
     await RedisController.instance.clearTimer();
 }, 30000);
-
-RedisController.instance.initializeDatabase();
