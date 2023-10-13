@@ -1,6 +1,7 @@
 import {readFileSync} from "fs";
 import {createHash} from "crypto";
 import {resolveTxt} from "dns/promises";
+import Logger from "../../../util/Logger";
 
 const secrets = JSON.parse(readFileSync("./src/secrets.json").toString());
 
@@ -32,7 +33,7 @@ export default async function verifyCustomDomainOwner(id: string, domain: string
         
         return txt[0][0] === "tm-custom-domain-verification";
     } catch(e) {
-        console.log(`Could not verify custom domain owner for ${domain}`);
+        Logger.error(`Could not verify custom domain owner for ${domain}`);
         return false;
     }
 }

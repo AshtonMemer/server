@@ -1,11 +1,12 @@
 import fetch from "node-fetch";
 import Email from "../entity/Email";
 import FormData from "form-data";
+import Logger from "./Logger";
 
 export default function webhookSender(url: string, emails: Email[]) {
     
     if(url.startsWith("https://discord.com/api/webhooks/")) {
-        console.log(`Sending ${emails.length} emails to a Discord webhook`);
+        Logger.log(`Sending ${emails.length} emails to a Discord webhook`);
         emails.forEach((email) => {
             const form = new FormData();
             const content = {
@@ -51,7 +52,7 @@ export default function webhookSender(url: string, emails: Email[]) {
                 body: form,
             }).then((r) => {
                 if(r.status === 429) {
-                    console.log("Webhook rate limited, retrying in 5 seconds");
+                    Logger.log("Webhook rate limited, retrying in 5 seconds");
                     setTimeout(() => {
                         webhookSender(url, [email]);
                     }, 5000);
@@ -72,7 +73,7 @@ export default function webhookSender(url: string, emails: Email[]) {
             body: JSON.stringify(emails),
         }).then((r) => {
             if(r.status === 429) {
-                console.log("Webhook rate limited, retrying in 5 seconds");
+                Logger.log("Webhook rate limited, retrying in 5 seconds");
                 setTimeout(() => {
                     webhookSender(url, emails);
                 }, 5000);

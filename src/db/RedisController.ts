@@ -34,9 +34,9 @@ export default class RedisController {
     
     private constructor() {
         this.client.connect().then(() => {
-            console.log("Connected to Redis");
+            Logger.log(`connected to redis!`);
         }).catch(() => {
-            console.error(`could not connect to redis!`);
+            Logger.error(`failed to connect to redis!`);
         });
     }
     

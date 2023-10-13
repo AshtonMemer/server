@@ -16,6 +16,7 @@ import * as dns from "dns";
 import sendDiscordMessage from "./util/sendDiscordMessage";
 import RedisController from "./db/RedisController";
 import fetch from "node-fetch";
+import Logger from "./util/Logger";
 
 export default class Config {
     
@@ -39,7 +40,7 @@ export default class Config {
     
 }
 
-console.log(`config loaded`);
+Logger.log("Loading domains from Redis...");
 
 //load the normal/community domains into memory.
 RedisController.instance.getDomains().then(r => {
@@ -109,17 +110,17 @@ setInterval(async () => {
                 await RedisController.instance.setCommunityDomains(domains);
                 
                 if(!a) {
-                    console.log(`Rush domain ${domain} has an invalid A record.`);
+                    Logger.log(`Rush domain ${domain} has an invalid A record.`);
                     sendMessage = false;
                 } else {
-                    console.log(`Rush domain ${domain} has an invalid MX record.`);
+                    Logger.log(`Rush domain ${domain} has an invalid MX record.`);
                     sendMessage = false;
                 }
             }
             
             //if the community domain has a _tmpml TXT record, remove it.
             if(await checkTXTRecord(domain)) {
-                console.log(`Rush domain ${domain} has an invalid TXT record.`);
+                Logger.log(`Rush domain ${domain} has an invalid TXT record.`)
                 sendMessage = false;
                 domains.splice(domains.indexOf(domain), 1);
                 await RedisController.instance.setCommunityDomains(domains);
@@ -157,7 +158,7 @@ const checker_auth = secrets.checker_auth;
 // @ts-ignore
 async function checkIP(addr: string): Promise<boolean> {
     
-    console.log(`Sending a confirmation message to ensure ${addr} is correct`);
+    Logger.log(`Sending a confirmation message to ensure ${addr} is correct`);
     
     const e = await fetch(`${checker_ip}:${checker_port}`, {
         headers: {
@@ -166,7 +167,7 @@ async function checkIP(addr: string): Promise<boolean> {
         },
     });
     
-    console.log(`Confirmation server returned ${e.status}`);
+    Logger.log(`Confirmation server returned ${e.status}`)
     
     return e.ok;
     

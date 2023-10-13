@@ -17,6 +17,7 @@ import {readFileSync} from "fs";
 import Config from "../../../../Config";
 import makeError from "../../../helper/makeError";
 import {TempMailErrorCodes} from "../../../../static/TempMailErrorCodes";
+import Logger from "../../../../util/Logger";
 
 export default async function communityEndpoint(data: HTTPEndpointParams): Promise<APIResponse> {
     
@@ -59,7 +60,7 @@ export default async function communityEndpoint(data: HTTPEndpointParams): Promi
         for(let i = 0; i < bw.banned_words.length; i++){
             const b: string = bw.banned_words[i];
             if(domain.includes(b)) {
-                console.log(`Domain ${domain} violates verification.`);
+                Logger.log(`Domain ${domain} violates verification.`);
                 return makeError("Domain contains banned word (trademark infringement).", 400, TempMailErrorCodes.BAD_JSON_POST_DATA);
             }
         }

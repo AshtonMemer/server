@@ -13,6 +13,7 @@
 
 import {APIResponse} from "../../../struct/api_data/v2/APIResponse";
 import {HTTPEndpointParams} from "../../../struct/api_data/v2/HTTPEndpointParams";
+import Logger from "../../../util/Logger";
 
 export default class RegisteredEndpoints {
     
@@ -21,7 +22,7 @@ export default class RegisteredEndpoints {
     public static endpoints: {path: string, function: (data: HTTPEndpointParams) => Promise<APIResponse>}[] = [];
     
     public static register(path: string, func: (data: HTTPEndpointParams) => Promise<APIResponse>) {
-        console.log(`Registered endpoint ${path}`);
+        Logger.log(`Registered endpoint ${path}`);
         
         this.endpoints.push({
             path: path,

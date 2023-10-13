@@ -21,6 +21,7 @@ import RedisController from "../db/RedisController";
 import webhookSender from "./webhookSender";
 import {StoredInbox} from "../entity/StoredInbox";
 import BananaCrumbsUtils from "./BananaCrumbsUtils";
+import Logger from "./Logger";
 
 export default class EmailStorage {
     
@@ -48,6 +49,7 @@ export default class EmailStorage {
         //if the domain does not exist
         if(!Config.EMAIL_DOMAINS.includes(domain)) {
             if(!Config.COMMUNITY_DOMAINS.includes(domain)) {
+                Logger.error("Invalid domain: " + domain);
                 throw new Error("Invalid domain");
             }
         }
@@ -97,8 +99,6 @@ export default class EmailStorage {
                 token: inbox.token,
                 last_access_time: Date.now(),
             };
-            
-            console.log(`storing`);
             
             await RedisController.instance.storeInbox(stored_inbox);
         })();

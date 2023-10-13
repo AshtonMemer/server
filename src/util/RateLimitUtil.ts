@@ -14,6 +14,7 @@
 import {contains} from "cidr-tools";
 import isIP from "./isIP";
 import {PremiumTier} from "../entity/PremiumTier";
+import Logger from "./Logger";
 
 export default class RateLimitUtil {
     
@@ -99,18 +100,18 @@ export default class RateLimitUtil {
             
             if(count >= max) {
                 if(!ver) {
-                    console.log(`Invalid IP: ${ip}`);
+                    Logger.log(`Invalid IP: ${ip} (banned)`);
                     this.BANNED_IPS.push(ip);
                 }
                 
                 if(ver === "4") {
                     this.BANNED_IPS.push(ip);
-                    console.log(`Banned IP: ${ip}/${this.STRICTNESS_IPV4}`);
+                    Logger.log(`Banned IP: ${ip}/${this.STRICTNESS_IPV4}`);
                 }
                 
                 if(ver === "6") {
                     this.BANNED_IPS.push(ip);
-                    console.log(`Banned IP: ${ip}/${this.STRICTNESS_IPV6}`);
+                    Logger.log(`Banned IP: ${ip}/${this.STRICTNESS_IPV6}`);
                 }
                 
                 return true;

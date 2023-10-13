@@ -17,6 +17,7 @@ import {AddressObject, simpleParser} from "mailparser";
 import RedisController from "../db/RedisController";
 import {readFileSync} from "fs";
 import webhookSender from "../util/webhookSender";
+import Logger from "../util/Logger";
 
 /**
  * Handles the incoming emails.
@@ -48,13 +49,12 @@ export default class EmailServer {
         });
         
         this.server.on("error", (e) => {
-            console.error("Error in EmailServer");
-            console.error(e);
+            Logger.error("Error in EmailServer " + e);
         })
         
         //listen
         this.server.listen(port, () => {
-            console.log(`Email server listening on port ${port}`);
+            Logger.log(`Email server listening on port ${port}`);
         });
         
     }
