@@ -11,11 +11,12 @@
  * OTHER DEALINGS IN THE SOFTWARE.
  */
 
-import {IncomingMessage, Server, ServerResponse} from "http";
+import { Server } from "bun";
 import {PremiumTier} from "../entity/PremiumTier";
 import login from "./helper/login";
 import v1 from "./api/v1";
 import v2 from "./api/v2";
+import { TempMailErrorCode } from "../static/TempMailErrorCode";
 
 export default class HTTPServer {
     
@@ -26,11 +27,14 @@ export default class HTTPServer {
      * @param port {number}
      */
     public constructor(
-        public readonly port: number
+        public readonly port: number,
+        public readonly production: boolean = false
     ) {
-        this.http_server = new Server((req, res) => {
-            HTTPServer.onRequest(req, res).catch(() => {});
-        });
+        this.http_server = Bun.serve({
+            port: port,
+            development: !production,
+            fetch: HTTPServer.fetch
+        })
     }
     
     /**
@@ -40,76 +44,66 @@ export default class HTTPServer {
      * @param res {ServerResponse}
      * @private
      */
-    private static async onRequest(req: IncomingMessage, res: ServerResponse): Promise<any> {
+    private static async fetch(req: Request): Promise<Response> {
         
         //check IP addresses to make sure this isn't a bad request
-        let ip = req.headers["CF-Connecting-IP".toLowerCase()];
-        
-        if(!ip) {
-            res.writeHead(200, {"Content-Type": "text/plain"});
-            return res.end("error");
-        }
-        
-        //array
-        if(typeof ip === "object") {
-            ip = ip[0];
-        }
-        
-        if(!ip) {
-            res.writeHead(200, {"Content-Type": "text/plain"});
-            return res.end("Not Found");
-        }
-        
-        // @ts-ignore
-        if(!req.url) {
-            res.writeHead(400);
-            return res.end("something broke idk");
-        }
+        let ip = req.headers.get("cf-connecting-ip") || undefined;
+        if(typeof ip === "object") ip = ip[0];
+        if(!ip) return new Response(JSON.stringify({ error: "No IP address"}), { status: 400 });
+
+        //set url to its path
+        let url = new URL(req.url);
+        let path = url.pathname + url.search;
         
         //bananacrumbs account
         let premiumTier: PremiumTier = PremiumTier.NONE;
         let account_id: string | undefined = undefined;
         let token: string | undefined = undefined;
         
-        const li_info = await login(req, res);
+        const li_info = await login(req);
         
         //if the user has an account, log him or her in here
-        if(li_info) {
+        if(typeof li_info !== "undefined" && typeof li_info !== "number") {
             account_id = li_info.account_id;
             premiumTier = li_info.login_status;
             token = li_info.account_token;
-        } else if(li_info === false) { //function returned
-            return;
+        }
+        else if(typeof li_info === "number") {
+            if (li_info == TempMailErrorCode.LOGIN_EXPIRED)
+                return new Response(JSON.stringify({ error: "Expired account (please add more time)\nYou do not need an account to use the Free Tier.", code: li_info }), { status: 401 });
+            else if(li_info == TempMailErrorCode.LOGIN_INVALID)
+                return new Response(JSON.stringify({ error: "Invalid login, bad BananaCrumbs login.", code: li_info }), { status: 401 });
+            else
+                return new Response(JSON.stringify({ error: "Generic error", code: li_info }), { status: 400 })
         }
         
         let api_version: string;
         
         //get the api version
-        if(req.url.startsWith("/v1/")) {
+        if(path.startsWith("/v1/")) {
             api_version = "v1";
-            req.url = req.url.substring(3);
-        } else if(req.url.startsWith("/v2/")) {
+            path = path.substring(3);
+        } else if(path.startsWith("/v2/")) {
             api_version = "v2";
-            req.url = req.url.substring(3);
+            path = path.substring(3);
         } else {
             api_version = "v1";
         }
         
         if(api_version === "v1") {
-            await v1(req, res, ip, account_id, token, premiumTier);
+            let response = await v1(path, ip, account_id, token, premiumTier);
+            return new Response(response.body, {
+                status: response.status_code,
+                headers: response.headers || {}
+            });
         } else if(api_version === "v2") {
-            await v2(req, res, ip, account_id, token, premiumTier);
+            let response = await v2(req, path.split('?')[0] as string, url.searchParams, ip, account_id, token, premiumTier);
+            return new Response(response.body, {
+                status: response.status_code,
+                headers: response.headers || {}
+            });
         } else {
-            res.writeHead(404);
-            res.end("Not Found");
+            return new Response(JSON.stringify({ error: "Invalid API version" }), { status: 400 });
         }
-    }
-    
-    /**
-     * Start the HTTP server.
-     */
-    public start() {
-        this.http_server.listen(this.port);
-    }
-    
+    } 
 }

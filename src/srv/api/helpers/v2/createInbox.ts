@@ -14,7 +14,7 @@
 import {APIResponse} from "../../../../struct/api_data/v2/APIResponse";
 import {HTTPEndpointParams} from "../../../../struct/api_data/v2/HTTPEndpointParams";
 import EmailStorage from "../../../../util/EmailStorage";
-import {TempMailErrorCodes} from "../../../../static/TempMailErrorCodes";
+import {TempMailErrorCode} from "../../../../static/TempMailErrorCode";
 import RateLimitUtil from "../../../../util/RateLimitUtil";
 
 /**
@@ -77,7 +77,7 @@ export default async function createInbox(data: HTTPEndpointParams): Promise<API
             status_code: 400,
             body: JSON.stringify({
                 error: `BananaCrumbs.US TempMail Endpoint ${e}.  Did you provide a valid domain name?`,
-                code: TempMailErrorCodes.INVALID_DOMAIN_NAME,
+                code: TempMailErrorCode.INVALID_DOMAIN_NAME,
             }),
         }
     }

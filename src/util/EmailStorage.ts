@@ -17,7 +17,7 @@ import {createHash, randomBytes} from "crypto";
 import Email from "../entity/Email";
 import * as dns from "dns";
 import {PremiumTier} from "../entity/PremiumTier";
-import RedisController from "../db/RedisController";
+import DatabaseController from "../db/DatabaseController";
 import webhookSender from "./webhookSender";
 import {StoredInbox} from "../entity/StoredInbox";
 import BananaCrumbsUtils from "./BananaCrumbsUtils";
@@ -86,7 +86,7 @@ export default class EmailStorage {
             let webhook: string | undefined;
             
             if(account_id)
-                webhook = await RedisController.instance.getIDWebhook(account_id);
+                webhook = await DatabaseController.instance.getIDWebhook(account_id);
             
             if(premium !== PremiumTier.TEMPMAIL_ULTRA)
                 webhook = undefined;
@@ -100,7 +100,7 @@ export default class EmailStorage {
                 last_access_time: Date.now(),
             };
             
-            await RedisController.instance.storeInbox(stored_inbox);
+            await DatabaseController.instance.storeInbox(stored_inbox);
         })();
         
         return inbox;
@@ -116,7 +116,7 @@ export default class EmailStorage {
         const emails = this.received_emails.get(token);
         let exists = false;
         
-        if((await (RedisController.instance.getInbox(token)))?.address) {
+        if((await (DatabaseController.instance.getInbox(token)))?.address) {
             exists = true;
             // await RedisController.instance.setLastAccessTime(token);
         }
@@ -165,7 +165,7 @@ export default class EmailStorage {
      * @param email {Email} the email.
      */
     public static async addEmail(email: Email) {
-        const inbox = await RedisController.instance.getInboxByAddress(email.to);
+        const inbox = await DatabaseController.instance.getInboxByAddress(email.to);
         
         if(inbox) {
             if(inbox.webhook) {
@@ -192,13 +192,13 @@ export default class EmailStorage {
             //into the customs map.
             async function checkWebhook(): Promise<boolean> {
                 try {
-                    const bcid = await RedisController.instance.getCustomWebhookOwner(domain);
+                    const bcid = await DatabaseController.instance.getCustomWebhookOwner(domain);
                     
                     if(bcid === "did_not_exist") {
                         return false;
                     }
                     
-                    const webhook = await RedisController.instance.getIDWebhook(bcid)
+                    const webhook = await DatabaseController.instance.getIDWebhook(bcid)
                     
                     if(webhook) {
                         

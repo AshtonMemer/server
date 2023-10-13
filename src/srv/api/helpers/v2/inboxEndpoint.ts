@@ -15,7 +15,7 @@ import {APIResponse} from "../../../../struct/api_data/v2/APIResponse";
 import {HTTPEndpointParams} from "../../../../struct/api_data/v2/HTTPEndpointParams";
 import EmailStorage from "../../../../util/EmailStorage";
 import Email from "../../../../entity/Email";
-import {TempMailErrorCodes} from "../../../../static/TempMailErrorCodes";
+import {TempMailErrorCode} from "../../../../static/TempMailErrorCode";
 
 type EmailResponseType = {
     emails: Email[],
@@ -43,7 +43,7 @@ export default async function inboxEndpoint(data: HTTPEndpointParams): Promise<A
             return {
                 body: JSON.stringify({
                     error: "Unauthenticated",
-                    code: TempMailErrorCodes.NO_AUTH,
+                    code: TempMailErrorCode.NO_AUTH,
                 }),
                 status_code: 401,
             };
@@ -77,7 +77,7 @@ export default async function inboxEndpoint(data: HTTPEndpointParams): Promise<A
             return {
                 body: JSON.stringify({
                     error: "Method Not Allowed (POST /inbox/create to create an inbox: https://github.com/tempmail-lol/server/wiki/v2-API-Endpoints)",
-                    code: TempMailErrorCodes.INVALID_METHOD,
+                    code: TempMailErrorCode.INVALID_METHOD,
                 }),
                 status_code: 405,
             };
@@ -87,7 +87,7 @@ export default async function inboxEndpoint(data: HTTPEndpointParams): Promise<A
         return {
             body: JSON.stringify({
                 error: "Internal Server Error: " + e,
-                code: TempMailErrorCodes.GENERIC_ERROR,
+                code: TempMailErrorCode.GENERIC_ERROR,
             }),
             status_code: 500,
         }

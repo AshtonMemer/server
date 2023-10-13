@@ -13,7 +13,7 @@
 
 import {HTTPEndpointParams} from "../../../../struct/api_data/v2/HTTPEndpointParams";
 import {APIResponse} from "../../../../struct/api_data/v2/APIResponse";
-import RedisController from "../../../../db/RedisController";
+import DatabaseController from "../../../../db/DatabaseController";
 
 type StatsResponse = {
     emails_received: number,
@@ -22,8 +22,8 @@ type StatsResponse = {
 
 export default async function statsEndpoint(_data: HTTPEndpointParams): Promise<APIResponse> {
     const res: StatsResponse = {
-        emails_received: await RedisController.instance.getStats(),
-        clients_connected: await RedisController.instance.getConnected(),
+        emails_received: await DatabaseController.instance.getStats(),
+        clients_connected: await DatabaseController.instance.getConnected(),
     };
     
     return {

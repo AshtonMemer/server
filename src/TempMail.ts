@@ -27,6 +27,8 @@ Logger.log("You are, under no circumstances, allowed to redistribute, resell, or
 
 //pipe emails from the email server to the email storage
 new EmailServer(Config.MAIL_PORT, (email: Email[]) => {
+    console.log('got email')
+    
     //convert the `to` field to lowercase
     for(const e of email) {
         e.to = e.to.toLowerCase();
@@ -34,14 +36,14 @@ new EmailServer(Config.MAIL_PORT, (email: Email[]) => {
     
     //add the emails to the storage
     email.forEach(async (email) => {
+        console.log(JSON.stringify(email))
         await EmailStorage.addEmail(email);
     });
 });
 
 Logger.log("Starting an HTTP Server...");
 //start the http server
-const http_server = new HTTPServer(Config.HTTP_PORT);
-http_server.start();
+new HTTPServer(Config.HTTP_PORT, false);
 Logger.log("HTTP Server started on port " + Config.HTTP_PORT);
 
 Logger.log("Registering v2 endpoints...");

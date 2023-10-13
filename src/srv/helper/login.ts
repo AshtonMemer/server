@@ -14,7 +14,7 @@
 import BananaCrumbsUtils from "../../util/BananaCrumbsUtils";
 import {PremiumTier} from "../../entity/PremiumTier";
 import {generateToken} from "node-2fa";
-import {IncomingMessage, ServerResponse} from "http";
+import { TempMailErrorCode } from "../../static/TempMailErrorCode";
 
 /**
  * Authenticates a from an HTTP request with his or her BCID
@@ -24,15 +24,15 @@ import {IncomingMessage, ServerResponse} from "http";
  * 
  * @returns {false | undefined | {login_status: PremiumTier, account_id: string}} the account details, false if the user did not authenticate, or undefined if the user did not attempt to login.
  */
-export default async function login(req: IncomingMessage, res: ServerResponse): Promise<false | undefined | {login_status: PremiumTier, account_id: string, account_token: string}> {
+export default async function login(req: Request): Promise<TempMailErrorCode | undefined | {login_status: PremiumTier, account_id: string, account_token: string}> {
     //try logging into an account (if present)
     try {
-        let bananacrumbs_id = req.headers["X-BananaCrumbs-ID".toLowerCase()] as string;
-        let mfa_token = req.headers["X-BananaCrumbs-MFA".toLowerCase()] as string;
+        let bananacrumbs_id = req.headers.get("x-bananacrumbs-id") as string;
+        let mfa_token = req.headers.get("x-bananacrumbs-mfa") as string;
         
         if(!bananacrumbs_id || !mfa_token) {
-            if(req.headers["authorization"]) {
-                const auth = req.headers["authorization"];
+            if(req.headers.get("authorization")) {
+                const auth = req.headers.get("authorization");
                 if(!auth || !auth.includes(",")) {
                     throw new Error();
                 } else {
@@ -51,19 +51,10 @@ export default async function login(req: IncomingMessage, res: ServerResponse): 
         const login_status = await BananaCrumbsUtils.login(bananacrumbs_id, tfa?.token);
         
         //if the account is expired or has no time left
-        if(login_status === "expired" || login_status === PremiumTier.NONE) {
-            res.writeHead(402);
-            res.end(JSON.stringify({
-                "error": "expired account (please add more time)\nYou do not need an account to use the Free Tier.",
-            }));
-            return false;
-        } else if(!login_status) {
-            res.writeHead(403);
-            res.end(JSON.stringify({
-                "error": "Invalid account details (bad BananaCrumbs ID or Token)",
-            }));
-            return false;
-        }
+        if(login_status === "expired" || login_status === PremiumTier.NONE)
+            return TempMailErrorCode.LOGIN_EXPIRED;
+        else if(!login_status)
+            return TempMailErrorCode.LOGIN_INVALID;
         
         return {
             login_status,

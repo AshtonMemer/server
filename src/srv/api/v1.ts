@@ -14,10 +14,10 @@ import RateLimitUtil from "../../util/RateLimitUtil";
 import {readFileSync} from "fs";
 import Config from "../../Config";
 import EmailStorage from "../../util/EmailStorage";
-import RedisController from "../../db/RedisController";
+import DatabaseController from "../../db/DatabaseController";
 import {PremiumTier} from "../../entity/PremiumTier";
-import {IncomingMessage, ServerResponse} from "http";
 import Logger from "../../util/Logger";
+import { APIResponse } from "../../struct/api_data/v2/APIResponse";
 
 /**
  * THIS IS AN OLD VERSION OF THE TEMPMAIL API.       /
@@ -32,45 +32,39 @@ import Logger from "../../util/Logger";
  * 
  * 
  * 
- * No new updates will be made to version 1 of the API.  THIS WILL BE REMOVED STARTING 2024.
+ * No new updates will be made to version 1 of the API.  THIS WILL BE REMOVED STARTING 2025.
  * 
- * @param req {IncomingMessage}
- * @param res {ServerResponse}
+ * @param path {string}
  * @param ip {string}
- * @param account_id {string | undefined}
+ * @param account_id {string | undefined} 
  * @param account_token {string | undefined}
  * @param premiumTier {PremiumTier}
  */
-export default async function v1(req: IncomingMessage, res: ServerResponse, ip: string, account_id: string | undefined, account_token: string | undefined, premiumTier: PremiumTier): Promise<any> {
-    
-    req.url = req.url as string; //ts fix
-    
-    if(req.url.includes("/generate")) {
+export default async function v1(path: string, ip: string, account_id: string | undefined, account_token: string | undefined, premiumTier: PremiumTier): Promise<APIResponse> {
+    if(path.includes("/generate")) {
         const b = RateLimitUtil.checkRateLimitGenerate(ip, account_id, premiumTier);
-        if(b) {
-            res.writeHead(429);
-            return res.end(JSON.stringify({
-                error: `rate limited (${premiumTier})`,
-            }));
+        if(b) return {
+            body: JSON.stringify({ error: `rate limited (${premiumTier})`}),
+            status_code: 429
         }
     }
     
-    if(req.url.startsWith("/addpublic/")) {
-        const domain = req.url.substring(11);
-        if(!domain || domain.length === 0 || domain.length > 64) {
-            res.writeHead(400);
-            return res.end("no domain");
+    if(path.startsWith("/addpublic/")) {
+        const domain = path.substring(11);
+        if(!domain || domain.length === 0 || domain.length > 64) return {
+            body: "no domain",
+            status_code: 400
         }
         
         // @ts-ignore
-        if(RateLimitUtil.checkRateLimitPubDomain(ip || "")) {
-            res.writeHead(429);
-            return res.end("rate limited");
+        if(RateLimitUtil.checkRateLimitPubDomain(ip || "")) return {
+            body: "rate limited",
+            status_code: 429
         }
         
-        if(!domain.match(/^(?!.*\.\.)[\w.\-]+(\.[a-zA-Z]{2,16})+(\/[\w.?%#&=\/\-]*)?$/)) {
-            res.writeHead(400);
-            return res.end("invalid domain");
+        if(!domain.match(/^(?!.*\.\.)[\w.\-]+(\.[a-zA-Z]{2,16})+(\/[\w.?%#&=\/\-]*)?$/)) return {
+            body: "invalid domain",
+            status_code: 400
         }
         
         try {
@@ -82,8 +76,10 @@ export default async function v1(req: IncomingMessage, res: ServerResponse, ip: 
                 const b: string = bw.banned_words[i];
                 if(domain.includes(b)) {
                     Logger.warn(`Domain ${domain} violates verification.`)
-                    res.writeHead(200);
-                    return res.end("ok");
+                    return {
+                        body: "ok",
+                        status_code: 200
+                    }
                 }
             }
             
@@ -94,154 +90,200 @@ export default async function v1(req: IncomingMessage, res: ServerResponse, ip: 
         
         Config.checking_domains.push(domain);
         
-        res.writeHead(200);
-        res.end("ok");
-    } else if(req.url.startsWith("/generate/") && req.url.length > "/generate/".length + 3 && req.url !== "/generate/rush") {
-        const domain = req.url.substring(10);
+        return {
+            body: "ok",
+            status_code: 200
+        }
+    } else if(path.startsWith("/generate/") && path.length > "/generate/".length + 3 && path !== "/generate/rush") {
+        const domain = path.substring(10);
         
         try {
             const address = EmailStorage.generateAddress(domain, premiumTier, account_id, account_token);
-            
             Logger.log(`Generated address ${address.address} for ${domain}`);
-            
-            res.writeHead(201, {
-                "Content-Type": "application/json",
-            });
-            
-            res.end(JSON.stringify({
+
+            return {
+                body: JSON.stringify({
+                    address: address.address,
+                    token: address.token,
+                }),
+                status_code: 201,
+                headers: {
+                    "Content-Type": "application/json"
+                }
+            };
+        } catch(e: any) {
+            return {
+                body: JSON.stringify({
+                    error: "invalid domain",
+                }),
+                status_code: 400,
+                headers: {
+                    "Content-Type": "application/json"
+                }
+            };
+        }
+    } else if(path === "/generate") {
+        const address = EmailStorage.generateAddress(undefined, premiumTier, account_id, account_token);
+        Logger.log(`Generated address ${address.address}`);
+
+        return {
+            body: JSON.stringify({
                 address: address.address,
                 token: address.token,
-            }));
-        } catch(e: any) {
-            res.setHeader("Content-Type", "application/json");
-            res.writeHead(400);
-            
-            return res.end(JSON.stringify({
-                "error": "invalid domain",
-            }));
-        }
-    } else if(req.url === "/generate") {
-        const address = EmailStorage.generateAddress(undefined, premiumTier, account_id, account_token);
-        
-        Logger.log(`Generated address ${address.address}`);
-        
-        res.writeHead(201, {
-            "Content-Type": "application/json",
-        });
-        
-        res.end(JSON.stringify({
-            address: address.address,
-            token: address.token,
-        }));
-    } else if(req.url === "/generate/rush") {
+            }),
+            status_code: 201,
+            headers: {
+                "Content-Type": "application/json"
+            }
+        };
+    } else if(path === "/generate/rush") {
         const address = EmailStorage.generateAddress(EmailStorage.getRandomCommunityDomain(), premiumTier, account_id, account_token);
-        
         Logger.log(`Generated address ${address.address} (rush)`);
-        
-        res.writeHead(201, {
-            "Content-Type": "application/json",
-        });
-        
-        res.end(JSON.stringify({
-            address: address.address,
-            token: address.token,
-        }));
-    } else if(req.url.startsWith("/auth/")) {
-        const token = req.url.substring("/auth/".length);
-        
+
+        return {
+            body: JSON.stringify({
+                address: address.address,
+                token: address.token,
+            }),
+            status_code: 201,
+            headers: {
+                "Content-Type": "application/json"
+            }
+        };
+    } else if(path.startsWith("/auth/")) {
+        const token = path.substring("/auth/".length);
         const emails = await EmailStorage.getInbox(token);
         
-        
-        res.writeHead(200, {
-            "Content-Type": "application/json",
-        });
-        
         if(!emails) {
-            return res.end(JSON.stringify({
-                email: null,
-                token: "invalid",
-            }));
+            return {
+                body: JSON.stringify({
+                    email: null,
+                    token: "invalid"
+                }),
+                status_code: 200,
+                headers: {
+                    "Content-Type": "application/json"
+                }
+            };
         } else {
-            
             emails.length !== 0 && Logger.log(`Got emails for ${(emails[0]?.to)} (${emails?.length} emails)`);
-            
-            return res.end(JSON.stringify({
-                email: emails,
-            }))
+
+            return {
+                body: JSON.stringify({
+                    email: emails
+                }),
+                status_code: 200,
+                headers: {
+                    "Content-Type": "application/json"
+                }
+            };
         }
-    } else if(req.url === "/stats") {
-        RedisController.instance.getStats().then((r) => {
-            res.writeHead(200);
-            return res.end(JSON.stringify({
-                emails_received: r,
-                clients_connected: RedisController.connected,
-            }));
+    } else if(path === "/stats") {
+        DatabaseController.instance.getStats().then((r) => {
+            return {
+                body: JSON.stringify({
+                    emails_received: r,
+                    clients_connected: DatabaseController.connected,
+                }),
+                status_code: 200,
+                headers: {
+                    "Content-Type": "application/json"
+                }
+            };
         });
-    } else if(req.url.startsWith("/custom/")) {
+    } else if(path.startsWith("/custom/")) {
         
         try {
             if(premiumTier === PremiumTier.NONE) {
-                res.writeHead(402);
-                res.end(JSON.stringify({
-                    "error": "Not logged in or out of time"
-                }));
-                
-                return;
+                return {
+                    body: JSON.stringify({
+                        error: "Not logged in or out of time"
+                    }),
+                    status_code: 402,
+                    headers: {
+                        "Content-Type": "application/json"
+                    }
+                }
             }
             
             let token, domain;
-            token = req.url.split("/")[2] as string;
-            domain = req.url.split("/")[3] as string;
+            token = path.split("/")[2] as string;
+            domain = path.split("/")[3] as string;
             const emails = await EmailStorage.getCustomInboxLegacy(token, domain);
             
-            res.writeHead(200, {
-                "Content-Type": "application/json",
-            });
-            
             if(emails.length === 0) {
-                return res.end(JSON.stringify({
-                    email: null,
-                }));
+                return {
+                    body: JSON.stringify({
+                        email: null,
+                    }),
+                    status_code: 200,
+                    headers: {
+                        "Content-Type": "application/json"
+                    }
+                };
             }
-            
-            return res.end(JSON.stringify({
-                email: emails,
-            }));
+            return {
+                body: JSON.stringify({
+                    email: emails,
+                }),
+                status_code: 200,
+                headers: {
+                    "Content-Type": "application/json"
+                }
+            };
         } catch(e) {
-            console.error(e);
-            res.writeHead(500);
-            return res.end("internal server error");
+            Logger.error(`${e}`);
+            return {
+                body: JSON.stringify({
+                    error: "internal server error"
+                }),
+                status_code: 500,
+                headers: {
+                    "Content-Type": "application/json"
+                }
+            }
         }
-    } else if(req.url.startsWith("/webhook/")) {
+    } else if(path.startsWith("/webhook/")) {
         
         if(!account_id) {
-            res.writeHead(401);
-            res.end(JSON.stringify({
-                error: "You must be logged in to modify webhooks!",
-            }));
-            return;
+            return {
+                body: JSON.stringify({
+                    error: "You must be logged in to modify webhooks!",
+                }),
+                status_code: 401,
+                headers: {
+                    "Content-Type": "application/json"
+                }
+            }
         }
         
         if(premiumTier !== PremiumTier.TEMPMAIL_ULTRA) {
-            res.writeHead(402);
-            res.end(JSON.stringify({
-                error: "You must have TempMail Ultra to modify webhooks!",
-            }));
-            return;
+            return {
+                body: JSON.stringify({
+                    error: "You must have TempMail Ultra to modify webhooks!",
+                }),
+                status_code: 402,
+                headers: {
+                    "Content-Type": "application/json"
+                }
+            }
         }
         
-        if(req.url.startsWith("/webhook/add/")) {
+        if(path.startsWith("/webhook/add/")) {
             try {
                 //do not split by / because the webhook URL may contain /
-                let webhook = req.url.substring("/webhook/add/".length);
+                let webhook = path.substring("/webhook/add/".length);
                 
                 if(webhook.length > 256) {
-                    //414
-                    res.writeHead(414);
-                    return res.end(JSON.stringify({
-                        "success": false,
-                        "error": "Webhook URL too long (please keep it under 256 characters)",
-                    }));
+                    return {
+                        body: JSON.stringify({
+                            error: "Webhook URL too long (please keep it under 256 characters)",
+                        }),
+                        status_code: 414,
+                        headers: {
+                            "Content-Type": "application/json"
+                        }
+                    }
                 }
                 
                 if(!webhook.startsWith("https://") && !webhook.startsWith("http://")) {
@@ -250,52 +292,94 @@ export default async function v1(req: IncomingMessage, res: ServerResponse, ip: 
                 
                 //match any valid URL
                 if(!webhook.match(/https?:\/\/(www\.)?[-a-zA-Z0-9@:%._+~#=]{1,256}\.[a-zA-Z0-9()]{1,6}\b([-a-zA-Z0-9()@:%_+.~#?&/=]*)/)) {
-                    res.writeHead(400);
-                    return res.end(JSON.stringify({
-                        "success": false,
-                        "error": "Invalid URL",
-                    }));
+                    return {
+                        body: JSON.stringify({
+                            error: "Invalid URL",
+                        }),
+                        status_code: 400,
+                        headers: {
+                            "Content-Type": "application/json"
+                        }
+                    }
                 }
-                const id = await RedisController.instance.setIDWebhook(account_id, webhook as string);
-                res.writeHead(200);
-                return res.end(JSON.stringify({
-                    "success": true,
-                    "id": id,
-                }));
+                const id = await DatabaseController.instance.setIDWebhook(account_id, webhook as string);
+                return {
+                    body: JSON.stringify({
+                        success: true,
+                        id: id,
+                    }),
+                    status_code: 200,
+                    headers: {
+                        "Content-Type": "application/json"
+                    }
+                }
             } catch(e) {
-                console.error(e);
-                res.writeHead(500);
-                return res.end(JSON.stringify({
-                    "success": false,
-                }));
+                Logger.error(`${e}`);
+                return {
+                    body: JSON.stringify({
+                        success: "false",
+                    }),
+                    status_code: 500,
+                    headers: {
+                        "Content-Type": "application/json"
+                    }
+                }
             }
-        } else if(req.url.startsWith("/webhook/remove")) {
+        } else if(path.startsWith("/webhook/remove")) {
             try {
-                await RedisController.instance.deleteIDWebhook(account_id);
-                res.writeHead(200);
-                return res.end(JSON.stringify({
-                    "success": true,
-                }));
+                await DatabaseController.instance.deleteIDWebhook(account_id);
+                return {
+                    body: JSON.stringify({
+                        success: true,
+                    }),
+                    status_code: 200,
+                    headers: {
+                        "Content-Type": "application/json"
+                    }
+                }
             } catch(e) {
-                console.error(e);
-                res.writeHead(500);
-                return res.end(JSON.stringify({
-                    "success": false,
-                }));
+                Logger.error(`${e}`);
+                return {
+                    body: JSON.stringify({
+                        success: "false",
+                    }),
+                    status_code: 500,
+                    headers: {
+                        "Content-Type": "application/json"
+                    }
+                }
             }
         } else {
-            res.writeHead(404);
-            return res.end(JSON.stringify({
-                "error": "Invalid URL",
-            }));
+            return {
+                body: JSON.stringify({
+                    error: "Invalid URL",
+                }),
+                status_code: 404,
+                headers: {
+                    "Content-Type": "application/json"
+                }
+            }
         }
         
     } else {
-        res.setHeader("Location", "https://github.com/tempmail-lol/server/wiki/API-Endpoints");
-        res.writeHead(302);
-        
-        return res.end(JSON.stringify({
-            error: "See https://github.com/tempmail-lol/server/wiki/API-Endpoints for more information on how to use the API.",
-        }));
+        return {
+            body: JSON.stringify({
+                error: "See https://github.com/tempmail-lol/server/wiki/API-Endpoints for more information on how to use the API.",
+            }),
+            status_code: 400,
+            headers: {
+                "Content-Type": "application/json"
+            }
+        }
+    }
+
+    return {
+        body: JSON.stringify({
+            error: "Invalid URL",
+        }),
+        status_code: 404,
+        headers: {
+            "Content-Type": "application/json"
+        }
     }
 }

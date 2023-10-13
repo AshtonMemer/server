@@ -15,4 +15,5 @@ import {HTTPCode} from "../../HTTPCode";
 export type APIResponse = {
     body: string,
     status_code: HTTPCode,
+    headers?: HeadersInit | undefined
 };

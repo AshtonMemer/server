@@ -14,7 +14,7 @@
 import Email from "../entity/Email";
 import {SMTPServer, SMTPServerDataStream, SMTPServerSession} from "smtp-server";
 import {AddressObject, simpleParser} from "mailparser";
-import RedisController from "../db/RedisController";
+import DatabaseController from "../db/DatabaseController";
 import {readFileSync} from "fs";
 import webhookSender from "../util/webhookSender";
 import Logger from "../util/Logger";
@@ -112,7 +112,7 @@ export default class EmailServer {
                 return;
             }
             
-            await RedisController.instance.incrementStats();
+            await DatabaseController.instance.incrementStats();
             
             async function addCC(type: "cc" | "bcc") {
                 for(let i = 0; i < (parsed[type] as AddressObject[]).length; i++){
@@ -122,7 +122,7 @@ export default class EmailServer {
                     
                     for(const c of cc.value) {
                         
-                        await RedisController.instance.incrementStats();
+                        await DatabaseController.instance.incrementStats();
                         
                         if(c.address) emails.push(new Email(
                             sender as string,

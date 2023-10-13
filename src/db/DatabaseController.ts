@@ -21,13 +21,13 @@ import {Email} from "./models";
 import {PremiumTier} from "../entity/PremiumTier";
 import Logger from "../util/Logger";
 
-export default class RedisController {
+export default class DatabaseController {
     
     //redis instance
     private client = createClient();
     
     //redis controller instance
-    public static readonly instance = new RedisController();
+    public static readonly instance = new DatabaseController();
     
     //cached amount of connected users
     public static connected: number;
@@ -337,10 +337,10 @@ export default class RedisController {
 //since this is an expensive endpoint, this number will be cached
 //instead of on demand like with v1 of the API.
 setInterval(async () => {
-    RedisController.connected = await RedisController.instance.getConnected();
+    DatabaseController.connected = await DatabaseController.instance.getConnected();
 }, 10000);
 
 //timer to clear the old inboxes
 setInterval(async () => {
-    await RedisController.instance.clearTimer();
+    await DatabaseController.instance.clearTimer();
 }, 30000);

@@ -1,5 +1,4 @@
-
-export enum TempMailErrorCodes {
+export enum TempMailErrorCode {
     GENERIC_ERROR,
     INVALID_DOMAIN_NAME,
     BAD_JSON_POST_DATA,
@@ -10,5 +9,7 @@ export enum TempMailErrorCodes {
     RATE_LIMITED,
     INVALID_DOMAIN_PASSWORD,
     BAD_QUERY_STRING,
-    
+    LOGIN_EXPIRED,
+    LOGIN_INVALID,
+    INTERNAL_SERVER_ERROR
 }

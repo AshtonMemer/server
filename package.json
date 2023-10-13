@@ -15,7 +15,6 @@
     "node-fetch": "^3.3.1",
     "redis": "^4.2.0",
     "smtp-server": "^3.11.0",
-    "sqlite3": "^5.1.6",
     "super-regex": "^0.2.0",
     "tslib": "^2.4.0",
     "winston": "^3.11.0",
@@ -25,7 +24,11 @@
     "@types/mailparser": "^3.4.0",
     "@types/node": "^18.0.3",
     "@types/redis": "^4.0.11",
-    "@types/smtp-server": "^3.5.7"
+    "@types/smtp-server": "^3.5.7",
+    "bun-types": "latest"
   },
-  "type": "module"
+  "type": "module",
+  "peerDependencies": {
+    "typescript": "^5.0.0"
+  }
 }
